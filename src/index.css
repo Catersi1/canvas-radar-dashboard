@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0f1410;
+  --color-card: #252b25;
+  --color-card-border: #3a453a;
+  --color-accent: #4ade80;
+  --color-text-primary: #f0fdf4;
+  --color-text-muted: #86a386;
+  
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-text-primary font-sans antialiased;
+  }
+}
+
+.glass-card {
+  @apply bg-card border border-card-border rounded-xl overflow-hidden;
+}
+
+.btn-primary {
+  @apply bg-accent text-background font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2;
+}
+
+.btn-secondary {
+  @apply bg-card border border-card-border text-text-primary px-4 py-2 rounded-lg hover:bg-card-border transition-colors flex items-center gap-2;
+}
+
+.status-badge {
+  @apply px-2 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-active { @apply bg-accent/20 text-accent; }
+.status-past-due { @apply bg-red-500/20 text-red-400; }
+.status-cancelled { @apply bg-gray-500/20 text-gray-400; }
+
