@@ -9,7 +9,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 let supabaseClient;
 try {
-  supabaseClient = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseAnonKey || 'placeholder');
+  supabaseClient = createClient(
+    supabaseUrl || 'https://placeholder.supabase.co', 
+    supabaseAnonKey || 'placeholder',
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    }
+  );
 } catch (e) {
   console.error('Supabase init failed:', e);
   supabaseClient = {

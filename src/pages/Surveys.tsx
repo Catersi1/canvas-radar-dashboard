@@ -20,8 +20,15 @@ import { cn } from '../lib/utils';
 export default function Surveys() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [surveys, setSurveys] = useState(MOCK_SURVEYS);
 
-  const filteredSurveys = MOCK_SURVEYS.filter(s => {
+  const handleApprove = (id: string) => {
+    setSurveys(prev => prev.map(s => 
+      s.id === id ? { ...s, status: 'Completed' as const, completionPercentage: 100 } : s
+    ));
+  };
+
+  const filteredSurveys = surveys.filter(s => {
     const matchesSearch = s.address.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          s.surveyorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          s.customerName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -143,6 +150,15 @@ export default function Surveys() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {survey.status !== 'Completed' && (
+                        <button 
+                          onClick={() => handleApprove(survey.id)}
+                          className="p-1.5 hover:bg-background rounded-lg text-emerald-500 hover:text-emerald-400 transition-colors"
+                          title="Approve Inspection"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                      )}
                       <button className="p-1.5 hover:bg-background rounded-lg text-text-muted hover:text-accent transition-colors">
                         <Eye className="w-4 h-4" />
                       </button>

@@ -12,7 +12,8 @@ import {
   Search, 
   Bell, 
   User,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -29,7 +30,11 @@ import CustomerPortal from '../pages/CustomerPortal';
 
 type Page = 'dashboard' | 'customers' | 'surveyors' | 'surveys' | 'billing' | 'analytics' | 'settings' | 'portal';
 
-export default function AdminApp() {
+interface AdminAppProps {
+  onLogout: () => void;
+}
+
+export default function AdminApp({ onLogout }: AdminAppProps) {
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -63,7 +68,7 @@ export default function AdminApp() {
   const activeLabel = navItems.find(i => i.id === activePage)?.label || 'Dashboard';
 
   return (
-    <div className="min-h-screen flex bg-background text-text-primary">
+    <div className="h-screen flex bg-background text-text-primary overflow-hidden">
       {/* Desktop Sidebar */}
       <aside 
         className={cn(
@@ -104,7 +109,14 @@ export default function AdminApp() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-card-border">
+        <div className="p-4 border-t border-card-border space-y-2">
+          <button 
+            onClick={onLogout}
+            className="w-full flex items-center gap-3 px-3 py-2 text-text-muted hover:text-red-400 transition-colors group"
+          >
+            <LogOut className="w-5 h-5 group-hover:text-red-400" />
+            {isSidebarOpen && <span className="text-sm font-medium">Back to Website</span>}
+          </button>
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="w-full flex items-center gap-3 px-3 py-2 text-text-muted hover:text-text-primary transition-colors"
@@ -152,6 +164,14 @@ export default function AdminApp() {
                   <span className="text-lg font-medium">{item.label}</span>
                 </button>
               ))}
+              <div className="h-px bg-card-border w-full my-2"></div>
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center gap-4 p-4 rounded-xl text-text-muted hover:text-red-400"
+              >
+                <LogOut className="w-6 h-6" />
+                <span className="text-lg font-medium">Back to Website</span>
+              </button>
             </nav>
           </motion.div>
         )}

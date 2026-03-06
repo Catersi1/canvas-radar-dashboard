@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   MapPin, 
@@ -15,18 +15,43 @@ import {
   FileText,
   Sun,
   Car,
-  Tag
+  Tag,
+  RefreshCw
 } from 'lucide-react';
 import { Survey } from '../types/dashboard';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
+import CameraCapture from './CameraCapture';
 
 interface SurveyDetailProps {
   survey: Survey;
   onClose: () => void;
+  onApprove?: (id: string) => void;
 }
 
-export default function SurveyDetail({ survey, onClose }: SurveyDetailProps) {
+export default function SurveyDetail({ survey, onClose, onApprove }: SurveyDetailProps) {
+  const [showCamera, setShowCamera] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [currentPhotos, setCurrentPhotos] = useState<string[]>(
+    Array.from({ length: 6 }).map((_, i) => `https://picsum.photos/seed/property-${survey.id}-${i}/600/400`)
+  );
+
+  const handleCapture = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    setCurrentPhotos([url, ...currentPhotos.slice(0, 5)]);
+    setShowCamera(false);
+  };
+
+  const handleApprove = async () => {
+    if (!onApprove) return;
+    setIsApproving(true);
+    try {
+      await onApprove(survey.id);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-sm">
       <div className="bg-[#0f0f11] border border-slate-800 rounded-2xl w-full max-w-4xl max-h-full overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
@@ -58,10 +83,19 @@ export default function SurveyDetail({ survey, onClose }: SurveyDetailProps) {
             {/* Left Column: Metadata & Status */}
             <div className="space-y-6">
               <section>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Info className="w-3.5 h-3.5" />
-                  Survey Info
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <Info className="w-3.5 h-3.5" />
+                    Survey Info
+                  </h3>
+                  <button 
+                    onClick={() => setShowCamera(true)}
+                    className="flex items-center gap-1.5 text-[10px] font-bold text-accent uppercase tracking-widest hover:underline"
+                  >
+                    <Camera className="w-3 h-3" />
+                    Add Photo
+                  </button>
+                </div>
                 <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-800 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-slate-500">Survey ID</span>
@@ -107,6 +141,33 @@ export default function SurveyDetail({ survey, onClose }: SurveyDetailProps) {
                       )}>
                         {item.value}
                       </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Camera className="w-3.5 h-3.5" />
+                  Property Photos
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {currentPhotos.map((photo, i) => (
+                    <div key={i} className="aspect-video bg-slate-900 rounded-lg overflow-hidden border border-slate-800 group relative">
+                      <img 
+                        src={photo} 
+                        alt={`Property ${i}`} 
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button 
+                          onClick={() => setShowCamera(true)}
+                          className="p-2 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-md text-white transition-all"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -186,11 +247,39 @@ export default function SurveyDetail({ survey, onClose }: SurveyDetailProps) {
           <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold rounded-xl transition-all border border-slate-700">
             Print Report
           </button>
-          <button className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-black text-sm font-bold rounded-xl transition-all">
-            Approve Inspection
+          <button 
+            onClick={handleApprove}
+            disabled={isApproving || survey.status === 'complete'}
+            className={cn(
+              "px-6 py-2 text-sm font-bold rounded-xl transition-all flex items-center gap-2",
+              survey.status === 'complete' 
+                ? "bg-slate-800 text-slate-500 cursor-not-allowed" 
+                : "bg-emerald-500 hover:bg-emerald-600 text-black"
+            )}
+          >
+            {isApproving ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Approving...
+              </>
+            ) : survey.status === 'complete' ? (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                Approved
+              </>
+            ) : (
+              'Approve Inspection'
+            )}
           </button>
         </div>
       </div>
+
+      {showCamera && (
+        <CameraCapture 
+          onCapture={handleCapture}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   );
 }

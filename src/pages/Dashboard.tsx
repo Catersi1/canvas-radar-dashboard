@@ -105,6 +105,32 @@ export default function Dashboard() {
     return { volume, conditions };
   }, [surveys]);
 
+  const handleApproveSurvey = async (surveyId: string) => {
+    try {
+      // Update local state
+      setSurveys(prev => prev.map(s => 
+        s.id === surveyId ? { ...s, status: 'complete' as const } : s
+      ));
+      
+      // Update Supabase if possible
+      const { error } = await supabase
+        .from('surveys')
+        .update({ status: 'complete' })
+        .eq('id', surveyId);
+        
+      if (error) {
+        console.warn('Supabase update failed, but local state updated:', error);
+      }
+      
+      // Close modal after a short delay to show success state
+      setTimeout(() => {
+        setSelectedSurvey(null);
+      }, 1000);
+    } catch (err) {
+      console.error('Error approving survey:', err);
+    }
+  };
+
   const handleExport = () => {
     const headers = ['ID', 'Address', 'Type', 'Status', 'Earnings', 'Roof Condition', 'Submitted At'];
     const rows = surveys.map(s => [
@@ -301,6 +327,7 @@ export default function Dashboard() {
         <SurveyDetail 
           survey={selectedSurvey} 
           onClose={() => setSelectedSurvey(null)} 
+          onApprove={handleApproveSurvey}
         />
       )}
     </div>
