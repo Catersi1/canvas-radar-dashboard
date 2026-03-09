@@ -12,20 +12,62 @@ import { cn } from './lib/utils';
 
 type Page = 'home' | 'about' | 'commercial' | 'residential' | 'pricing' | 'login' | 'signup' | 'admin';
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'power_user' | 'employer' | 'surveyor' | 'customer';
+}
+
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('canvasradar_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [authRole, setAuthRole] = useState<'surveyor' | 'customer'>('customer');
   const [authType, setAuthType] = useState<'login' | 'signup'>('login');
 
+  React.useEffect(() => {
+    if (user) {
+      localStorage.setItem('canvasradar_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('canvasradar_user');
+    }
+  }, [user]);
+
   const navigate = (page: Page) => {
-    setCurrentPage(page);
+    if (page === 'admin' && !user) {
+      setAuthType('login');
+      setCurrentPage('login');
+    } else {
+      setCurrentPage(page);
+    }
     setIsMenuOpen(false);
     window.scrollTo(0, 0);
   };
 
+  const handleLogin = (userData: User) => {
+    setUser(userData);
+    if (userData.role === 'admin' || userData.role === 'power_user' || userData.role === 'employer') {
+      setCurrentPage('admin');
+    } else {
+      setCurrentPage('home');
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setCurrentPage('home');
+  };
+
+  const handleNavigateHome = () => {
+    setCurrentPage('home');
+  };
+
   if (currentPage === 'admin') {
-    return <AdminApp onLogout={() => navigate('home')} />;
+    return <AdminApp onLogout={handleLogout} onNavigateHome={handleNavigateHome} user={user} />;
   }
 
   const renderPage = () => {
@@ -43,6 +85,7 @@ function App() {
             role={authRole} 
             onToggleType={() => setAuthType(authType === 'login' ? 'signup' : 'login')}
             onToggleRole={() => setAuthRole(authRole === 'customer' ? 'surveyor' : 'customer')}
+            onAuthSuccess={handleLogin}
           />
         );
       default: return <HomePage onNavigate={(p) => navigate(p as Page)} />;

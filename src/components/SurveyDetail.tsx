@@ -118,6 +118,19 @@ export default function SurveyDetail({ survey, onClose, onApprove }: SurveyDetai
                     <span className="text-xs text-slate-500">Submitted</span>
                     <span className="text-xs text-slate-300">{format(new Date(survey.submitted_at), 'MMM d, yyyy HH:mm')}</span>
                   </div>
+                  <div className="pt-2 border-t border-slate-800">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Coordinates</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-background rounded-lg p-2 border border-slate-800">
+                        <p className="text-[8px] text-slate-500 uppercase font-bold">Latitude</p>
+                        <p className="text-xs font-mono text-slate-300">{survey.properties?.lat.toFixed(6)}</p>
+                      </div>
+                      <div className="bg-background rounded-lg p-2 border border-slate-800">
+                        <p className="text-[8px] text-slate-500 uppercase font-bold">Longitude</p>
+                        <p className="text-xs font-mono text-slate-300">{survey.properties?.lng.toFixed(6)}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </section>
 

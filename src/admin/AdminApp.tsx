@@ -13,7 +13,9 @@ import {
   Bell, 
   User,
   ChevronRight,
-  LogOut
+  LogOut,
+  ShieldCheck,
+  Home
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -27,14 +29,17 @@ import Billing from '../pages/Billing';
 import Analytics from '../pages/Analytics';
 import SettingsPage from '../pages/Settings';
 import CustomerPortal from '../pages/CustomerPortal';
+import UsersPage from '../pages/Users';
 
-type Page = 'dashboard' | 'customers' | 'surveyors' | 'surveys' | 'billing' | 'analytics' | 'settings' | 'portal';
+type Page = 'dashboard' | 'customers' | 'surveyors' | 'surveys' | 'billing' | 'analytics' | 'settings' | 'portal' | 'users';
 
 interface AdminAppProps {
   onLogout: () => void;
+  onNavigateHome: () => void;
+  user: any;
 }
 
-export default function AdminApp({ onLogout }: AdminAppProps) {
+export default function AdminApp({ onLogout, onNavigateHome, user }: AdminAppProps) {
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -45,6 +50,7 @@ export default function AdminApp({ onLogout }: AdminAppProps) {
     { id: 'customers', label: 'Customers', icon: Building },
     { id: 'surveyors', label: 'Surveyors', icon: Users },
     { id: 'surveys', label: 'Surveys', icon: FileText },
+    { id: 'users', label: 'Users', icon: ShieldCheck },
     { id: 'billing', label: 'Billing', icon: Wallet },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -61,6 +67,7 @@ export default function AdminApp({ onLogout }: AdminAppProps) {
       case 'billing': return <Billing />;
       case 'analytics': return <Analytics />;
       case 'settings': return <SettingsPage />;
+      case 'users': return <UsersPage />;
       default: return <Dashboard onViewAsCustomer={() => setIsCustomerView(true)} />;
     }
   };
@@ -111,11 +118,18 @@ export default function AdminApp({ onLogout }: AdminAppProps) {
 
         <div className="p-4 border-t border-card-border space-y-2">
           <button 
+            onClick={onNavigateHome}
+            className="w-full flex items-center gap-3 px-3 py-2 text-text-muted hover:text-accent transition-colors group"
+          >
+            <Home className="w-5 h-5 group-hover:text-accent" />
+            {isSidebarOpen && <span className="text-sm font-medium">Back to Website</span>}
+          </button>
+          <button 
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-3 py-2 text-text-muted hover:text-red-400 transition-colors group"
           >
             <LogOut className="w-5 h-5 group-hover:text-red-400" />
-            {isSidebarOpen && <span className="text-sm font-medium">Back to Website</span>}
+            {isSidebarOpen && <span className="text-sm font-medium">Logout</span>}
           </button>
           <button 
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -166,11 +180,18 @@ export default function AdminApp({ onLogout }: AdminAppProps) {
               ))}
               <div className="h-px bg-card-border w-full my-2"></div>
               <button
+                onClick={onNavigateHome}
+                className="w-full flex items-center gap-4 p-4 rounded-xl text-text-muted hover:text-accent"
+              >
+                <Home className="w-6 h-6" />
+                <span className="text-lg font-medium">Back to Website</span>
+              </button>
+              <button
                 onClick={onLogout}
                 className="w-full flex items-center gap-4 p-4 rounded-xl text-text-muted hover:text-red-400"
               >
                 <LogOut className="w-6 h-6" />
-                <span className="text-lg font-medium">Back to Website</span>
+                <span className="text-lg font-medium">Logout</span>
               </button>
             </nav>
           </motion.div>
@@ -205,8 +226,8 @@ export default function AdminApp({ onLogout }: AdminAppProps) {
               
               <div className="flex items-center gap-3 cursor-pointer group">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-text-primary group-hover:text-accent transition-colors">Admin User</p>
-                  <p className="text-xs text-text-muted uppercase tracking-wider">Super Admin</p>
+                  <p className="text-sm font-medium text-text-primary group-hover:text-accent transition-colors">{user?.name || 'Admin User'}</p>
+                  <p className="text-xs text-text-muted uppercase tracking-wider">{user?.role?.replace('_', ' ') || 'Super Admin'}</p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-card border border-card-border flex items-center justify-center text-text-muted overflow-hidden">
                   <User className="w-6 h-6" />

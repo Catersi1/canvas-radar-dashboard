@@ -300,7 +300,7 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-slate-500">{survey.properties?.city}, {survey.properties?.state}</p>
-                      <p className="text-xs font-mono text-slate-400">{format(new Date(survey.submitted_at), 'HH:mm')}</p>
+                      <p className="text-xs font-mono text-slate-400">{format(new Date(survey.submitted_at), 'MMM d, HH:mm')}</p>
                     </div>
                   </div>
                 ))}

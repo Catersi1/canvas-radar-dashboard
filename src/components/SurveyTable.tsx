@@ -98,7 +98,7 @@ export default function SurveyTable({ surveys, onSelectSurvey, onExport }: Surve
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-slate-400">
-                  {format(new Date(survey.submitted_at), 'MMM d, yyyy')}
+                  {format(new Date(survey.submitted_at), 'MMM d, yyyy HH:mm')}
                 </td>
                 <td className="px-6 py-4 text-right">
                   <button className="p-2 text-slate-500 hover:text-emerald-400 transition-colors">

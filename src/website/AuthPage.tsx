@@ -18,9 +18,34 @@ interface AuthPageProps {
   role: 'surveyor' | 'customer';
   onToggleType: () => void;
   onToggleRole: () => void;
+  onAuthSuccess: (user: any) => void;
 }
 
-export default function AuthPage({ type, role, onToggleType, onToggleRole }: AuthPageProps) {
+export default function AuthPage({ type, role, onToggleType, onToggleRole, onAuthSuccess }: AuthPageProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    // Simulate authentication
+    setTimeout(() => {
+      // Mock user based on role and input
+      const mockUser = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: name || (email.split('@')[0]),
+        email: email,
+        role: email.includes('admin') ? 'admin' : (role === 'surveyor' ? 'surveyor' : 'customer')
+      };
+      
+      onAuthSuccess(mockUser);
+      setIsLoading(false);
+    }, 1000);
+  };
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-20 px-6">
       <div className="w-full max-w-md">
@@ -57,14 +82,21 @@ export default function AuthPage({ type, role, onToggleType, onToggleRole }: Aut
             </button>
           </div>
 
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             {type === 'signup' && role === 'surveyor' && (
               <>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Full Name</label>
                   <div className="relative">
                     <User className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                    <input type="text" className="w-full bg-background border border-card-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-accent" placeholder="John Doe" />
+                    <input 
+                      type="text" 
+                      className="w-full bg-background border border-card-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-accent" 
+                      placeholder="John Doe" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -96,7 +128,14 @@ export default function AuthPage({ type, role, onToggleType, onToggleRole }: Aut
               <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Email Address</label>
               <div className="relative">
                 <Mail className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input type="email" className="w-full bg-background border border-card-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-accent" placeholder="name@example.com" />
+                <input 
+                  type="email" 
+                  className="w-full bg-background border border-card-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-accent" 
+                  placeholder="name@example.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
@@ -107,13 +146,24 @@ export default function AuthPage({ type, role, onToggleType, onToggleRole }: Aut
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input type="password" className="w-full bg-background border border-card-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-accent" placeholder="••••••••" />
+                <input 
+                  type="password" 
+                  className="w-full bg-background border border-card-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:border-accent" 
+                  placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
-            <button className="btn-primary w-full justify-center py-4 text-lg">
-              {type === 'login' ? 'Sign In' : 'Create Account'}
-              <ArrowRight className="w-5 h-5" />
+            <button 
+              type="submit"
+              disabled={isLoading}
+              className="btn-primary w-full justify-center py-4 text-lg"
+            >
+              {isLoading ? 'Processing...' : (type === 'login' ? 'Sign In' : 'Create Account')}
+              {!isLoading && <ArrowRight className="w-5 h-5" />}
             </button>
           </form>
 
