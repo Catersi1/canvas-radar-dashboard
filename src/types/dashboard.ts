@@ -40,6 +40,36 @@ export interface Survey {
   parking_avail?: string;
   zoning_type?: string;
 
+  // External Data
+  external_photo_url?: string;
+  external_source_url?: string;
+  
+  // Enriched Data
+  sqft?: number;
+  year_built?: number;
+  last_sale_price?: number;
+  last_sale_date?: string;
+  lot_size?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  property_tax?: number;
+  estimated_value?: number;
+  neighborhood_rating?: string;
+  enrichment_status?: 'none' | 'pending' | 'complete' | 'failed';
+  enrichment_source?: string;
+
+  // Location & Amenities Data
+  closest_grocery?: { name: string; distance: string; miles: number };
+  closest_highway?: { name: string; distance: string; miles: number };
+  closest_elementary?: { name: string; distance: string; miles: number };
+  closest_middle?: { name: string; distance: string; miles: number };
+  closest_high?: { name: string; distance: string; miles: number };
+  closest_gas?: { name: string; distance: string; miles: number };
+  closest_walmart?: { name: string; distance: string; miles: number };
+  closest_restaurant?: { name: string; distance: string; miles: number };
+  safety_rating?: string;
+  safety_notes?: string;
+
   // Joined property data
   properties?: Property;
 }

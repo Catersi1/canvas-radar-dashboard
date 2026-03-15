@@ -33,12 +33,15 @@ export const generateMockData = () => {
     };
     properties.push(property);
 
+    const submittedAt = new Date(new Date(property.created_at).getTime() + 3600000);
+    const isRecent = (Date.now() - submittedAt.getTime()) < (2 * 24 * 60 * 60 * 1000); // Last 2 days
+
     const survey: Survey = {
       id: `surv-${i}`,
       property_id: property.id,
       surveyor_id: `user-${Math.floor(Math.random() * 10)}`,
       type: property.type,
-      status: Math.random() > 0.2 ? 'complete' : 'pending',
+      status: isRecent ? 'pending' : (Math.random() > 0.3 ? 'complete' : 'pending'),
       earnings: Math.random() * 50 + 10,
       progress: Math.random() * 100,
       roof_condition: conditions[Math.floor(Math.random() * 3)],
@@ -51,8 +54,9 @@ export const generateMockData = () => {
       is_abandoned: Math.random() > 0.95 ? 'Yes' : 'No',
       notes: 'Property appears well maintained from the street. No major issues observed during this inspection.',
       created_at: property.created_at,
-      submitted_at: new Date(new Date(property.created_at).getTime() + 3600000).toISOString(),
+      submitted_at: submittedAt.toISOString(),
       properties: property,
+      enrichment_status: 'none',
     };
 
     if (type === 'commercial') {

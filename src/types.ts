@@ -73,7 +73,7 @@ export const MOCK_SURVEYS: Survey[] = Array.from({ length: 50 }).map((_, i) => (
   type: Math.random() > 0.3 ? 'Residential' : 'Commercial',
   surveyorName: MOCK_SURVEYORS[Math.floor(Math.random() * MOCK_SURVEYORS.length)].name,
   customerName: MOCK_CUSTOMERS[Math.floor(Math.random() * MOCK_CUSTOMERS.length)].name,
-  date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
   status: ['Pending', 'In Progress', 'Completed', 'Review Required'][Math.floor(Math.random() * 4)] as SurveyStatus,
   completionPercentage: Math.floor(Math.random() * 100),
 }));

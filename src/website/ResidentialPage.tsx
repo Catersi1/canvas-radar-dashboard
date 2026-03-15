@@ -34,12 +34,11 @@ export default function ResidentialPage() {
           animate={{ opacity: 1, y: 0 }}
         >
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6">
-            Get Paid to <br />
-            <span className="text-accent">Survey Properties</span>
+            The Foundation of <br />
+            <span className="text-accent">Ground-Truth Data</span>
           </h1>
           <p className="text-xl text-text-muted max-w-2xl mx-auto mb-10">
-            Earn $0.25 per property survey. No experience needed. <br />
-            Work when you want, where you want.
+            Earn money by capturing the real-world data that powers our 360° property platform. Your surveys provide the ground truth that AI can't see.
           </p>
           <button className="btn-primary text-lg px-10 py-4 mx-auto">
             Download the App

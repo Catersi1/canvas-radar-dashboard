@@ -27,18 +27,18 @@ export default function AboutPage() {
         <div className="glass-card p-12 bg-background/50">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="aspect-video bg-card border border-card-border rounded-2xl overflow-hidden relative">
-              <img src="https://picsum.photos/seed/team/800/600" alt="Team" className="w-full h-full object-cover opacity-50" referrerPolicy="no-referrer" />
+              <img src="https://picsum.photos/seed/innovation/800/600" alt="Innovation" className="w-full h-full object-cover opacity-50" referrerPolicy="no-referrer" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-accent font-bold text-2xl tracking-widest uppercase">Our Team</span>
+                <span className="text-accent font-bold text-2xl tracking-widest uppercase">The 360° Vision</span>
               </div>
             </div>
             <div className="space-y-6">
               <h2 className="text-3xl font-bold">Our Story</h2>
               <p className="text-text-muted leading-relaxed">
-                CanvasRadar started with a simple observation: property data was either too expensive, too slow, or too inaccurate. We saw insurance adjusters spending days on the road and real estate agents taking blurry photos with their phones.
+                CanvasRadar started with a simple observation: property data was fragmented. You had to go to one site for photos, another for tax records, and a third for local amenities. Most of it was years out of date.
               </p>
               <p className="text-text-muted leading-relaxed">
-                We built a platform that leverages the power of local networks and advanced AI to capture high-quality property data at a fraction of the cost and time. Today, we serve hundreds of companies across the country.
+                We built the first "Physical-First" platform that leverages local surveyor networks and advanced AI to capture high-quality ground truth, then enriches it with every data point a professional needs. Structural specs, market history, local amenities, and safety scores — all under one umbrella.
               </p>
             </div>
           </div>

@@ -7,7 +7,9 @@ import {
   Download,
   Filter,
   RefreshCcw,
-  AlertCircle
+  AlertCircle,
+  Globe,
+  TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Property, Survey } from '../types/dashboard';
@@ -16,6 +18,8 @@ import MetricCard from '../components/MetricCard';
 import Trends from '../components/Trends';
 import SurveyTable from '../components/SurveyTable';
 import SurveyDetail from '../components/SurveyDetail';
+import { findPropertyPhoto } from '../services/propertySearch';
+import { enrichPropertyData } from '../services/propertyEnrichment';
 import { format, subDays, startOfDay, isAfter } from 'date-fns';
 import { cn } from '../lib/utils';
 
@@ -26,6 +30,89 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
+
+  const [isAutoFetching, setIsAutoFetching] = useState(false);
+  const [isAutoEnriching, setIsAutoEnriching] = useState(false);
+
+  const autoEnrichProperties = async (surveysList: Survey[]) => {
+    if (isAutoEnriching) return;
+    
+    const toEnrich = surveysList.filter(s => s.enrichment_status === 'none').slice(0, 3);
+    if (toEnrich.length === 0) return;
+
+    setIsAutoEnriching(true);
+    console.log(`Dashboard: Auto-enriching ${toEnrich.length} properties...`);
+
+    for (const survey of toEnrich) {
+      try {
+        const result = await enrichPropertyData(survey.properties?.address || '');
+        if (result) {
+          await handleUpdateSurvey(survey.id, {
+            sqft: result.sqft,
+            year_built: result.year_built,
+            last_sale_price: result.last_sale_price,
+            last_sale_date: result.last_sale_date,
+            lot_size: result.lot_size,
+            bedrooms: result.bedrooms,
+            bathrooms: result.bathrooms,
+            property_tax: result.property_tax,
+            estimated_value: result.estimated_value,
+            neighborhood_rating: result.neighborhood_rating,
+            closest_grocery: result.closest_grocery,
+            closest_highway: result.closest_highway,
+            closest_elementary: result.closest_elementary,
+            closest_middle: result.closest_middle,
+            closest_high: result.closest_high,
+            closest_gas: result.closest_gas,
+            closest_walmart: result.closest_walmart,
+            closest_restaurant: result.closest_restaurant,
+            safety_rating: result.safety_rating,
+            safety_notes: result.safety_notes,
+            enrichment_source: result.source_url,
+            enrichment_status: 'complete'
+          });
+        }
+      } catch (e) {
+        console.error(`Failed to auto-enrich survey ${survey.id}:`, e);
+      }
+    }
+    setIsAutoEnriching(false);
+  };
+
+  const fetchMissingPhotos = async (surveysList: Survey[]) => {
+    if (isAutoFetching) return;
+    setIsAutoFetching(true);
+    
+    const surveysToFetch = surveysList.filter(s => !s.external_photo_url).slice(0, 5);
+    for (const survey of surveysToFetch) {
+      try {
+        const result = await findPropertyPhoto(
+          survey.properties?.address || '',
+          survey.properties?.lat,
+          survey.properties?.lng
+        );
+        
+        if (result.imageUrl) {
+          handleUpdateSurvey(survey.id, {
+            external_photo_url: result.imageUrl,
+            external_source_url: result.sourceUrl
+          });
+          
+          // Update Supabase if possible
+          await supabase
+            .from('surveys')
+            .update({ 
+              external_photo_url: result.imageUrl,
+              external_source_url: result.sourceUrl
+            })
+            .eq('id', survey.id);
+        }
+      } catch (e) {
+        console.error(`Failed to fetch photo for survey ${survey.id}:`, e);
+      }
+    }
+    setIsAutoFetching(false);
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -41,13 +128,16 @@ export default function Dashboard() {
           .from('surveys')
           .select('*, properties(*)');
 
+        let finalSurveys: Survey[] = [];
         if (propError || survError || !propData || propData.length === 0) {
           console.log('Using mock data...');
           const { properties: mockProps, surveys: mockSurv } = generateMockData();
           setProperties(mockProps);
+          finalSurveys = mockSurv;
           setSurveys(mockSurv);
         } else {
           setProperties(propData);
+          finalSurveys = survData;
           setSurveys(survData);
         }
       } catch (err) {
@@ -65,16 +155,33 @@ export default function Dashboard() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (surveys.length > 0 && !loading) {
+      fetchMissingPhotos(surveys);
+      
+      const hasUnenriched = surveys.some(s => s.enrichment_status === 'none');
+      if (hasUnenriched && !isAutoEnriching) {
+        autoEnrichProperties(surveys);
+      }
+    }
+  }, [surveys, isAutoEnriching, loading]);
+
   // Derived Stats
   const stats = useMemo(() => {
     const totalSurveys = surveys.length;
-    const totalEarnings = surveys.reduce((acc, s) => acc + s.earnings, 0);
+    const totalEarnings = surveys.reduce((acc, s) => acc + (s.earnings || 0), 0);
     const completionRate = totalSurveys > 0 
       ? (surveys.filter(s => s.status === 'complete').length / totalSurveys) * 100 
       : 0;
     
     const today = startOfDay(new Date());
-    const todayActivity = surveys.filter(s => isAfter(new Date(s.submitted_at), today)).length;
+    const todayActivity = surveys.filter(s => {
+      try {
+        return s.submitted_at && isAfter(new Date(s.submitted_at), today);
+      } catch (e) {
+        return false;
+      }
+    }).length;
 
     return {
       totalSurveys,
@@ -91,7 +198,13 @@ export default function Dashboard() {
     for (let i = 29; i >= 0; i--) {
       const date = subDays(new Date(), i);
       const dateStr = format(date, 'MMM d');
-      const count = surveys.filter(s => format(new Date(s.submitted_at), 'MMM d') === dateStr).length;
+      const count = surveys.filter(s => {
+        try {
+          return s.submitted_at && format(new Date(s.submitted_at), 'MMM d') === dateStr;
+        } catch (e) {
+          return false;
+        }
+      }).length;
       volume.push({ date: dateStr, count });
     }
 
@@ -112,6 +225,11 @@ export default function Dashboard() {
         s.id === surveyId ? { ...s, status: 'complete' as const } : s
       ));
       
+      // Update selected survey to reflect changes immediately
+      if (selectedSurvey?.id === surveyId) {
+        setSelectedSurvey({ ...selectedSurvey, status: 'complete' as const });
+      }
+      
       // Update Supabase if possible
       const { error } = await supabase
         .from('surveys')
@@ -128,6 +246,33 @@ export default function Dashboard() {
       }, 1000);
     } catch (err) {
       console.error('Error approving survey:', err);
+    }
+  };
+
+  const handleUpdateSurvey = async (id: string, updates: Partial<Survey>) => {
+    // Update local state
+    setSurveys(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    
+    // Update selected survey if it's the one being updated
+    setSelectedSurvey(prev => {
+      if (prev?.id === id) {
+        return { ...prev, ...updates };
+      }
+      return prev;
+    });
+
+    // Update Supabase
+    try {
+      const { error } = await supabase
+        .from('surveys')
+        .update(updates)
+        .eq('id', id);
+      
+      if (error) {
+        console.warn('Supabase update failed:', error);
+      }
+    } catch (err) {
+      console.error('Error updating Supabase:', err);
     }
   };
 
@@ -173,9 +318,27 @@ export default function Dashboard() {
             <Zap className="w-5 h-5 text-emerald-500" />
             Executive Summary
           </h2>
-          <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            Live System Status: Operational
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => autoEnrichProperties(surveys)}
+              disabled={isAutoEnriching}
+              className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+            >
+              <TrendingUp className={cn("w-3.5 h-3.5", isAutoEnriching && "animate-spin")} />
+              {isAutoEnriching ? 'Enriching...' : 'Enrich All Data'}
+            </button>
+            <button 
+              onClick={() => fetchMissingPhotos(surveys)}
+              disabled={isAutoFetching}
+              className="flex items-center gap-2 text-xs text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all disabled:opacity-50"
+            >
+              <Globe className={cn("w-3.5 h-3.5", isAutoFetching && "animate-spin")} />
+              {isAutoFetching ? 'Fetching Photos...' : 'Fetch Missing Photos'}
+            </button>
+            <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+              Live System Status: Operational
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -300,7 +463,9 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-slate-500">{survey.properties?.city}, {survey.properties?.state}</p>
-                      <p className="text-xs font-mono text-slate-400">{format(new Date(survey.submitted_at), 'MMM d, HH:mm')}</p>
+                      <p className="text-xs font-mono text-slate-400">
+                        {survey.submitted_at ? format(new Date(survey.submitted_at), 'MMM d, HH:mm') : 'N/A'}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -328,6 +493,7 @@ export default function Dashboard() {
           survey={selectedSurvey} 
           onClose={() => setSelectedSurvey(null)} 
           onApprove={handleApproveSurvey}
+          onUpdate={handleUpdateSurvey}
         />
       )}
     </div>

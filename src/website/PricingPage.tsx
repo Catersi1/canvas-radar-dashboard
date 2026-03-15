@@ -18,13 +18,13 @@ export default function PricingPage() {
       name: 'Basic',
       price: '$200',
       desc: 'Perfect for local real estate agents.',
-      features: ['50 reports/month', 'Standard property profiles', 'Email support', 'Mobile app access', 'Photo documentation']
+      features: ['50 reports/month', 'Verified Ground Photos', 'Email support', 'Mobile app access', 'Basic Property Specs']
     },
     {
       name: 'Pro',
       price: '$500',
       desc: 'Best for regional property managers.',
-      features: ['200 reports/month', 'Custom condition scoring', 'API access', 'Priority support', 'GPS verification', 'CRM integration']
+      features: ['200 reports/month', '360° Market Enrichment', 'Amenity & Safety Mapping', 'API access', 'Priority support', 'CRM integration']
     },
     {
       name: 'Enterprise',

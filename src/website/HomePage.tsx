@@ -27,10 +27,10 @@ interface HomeProps {
 
 export default function HomePage({ onNavigate }: HomeProps) {
   const steps = [
-    { title: 'We Send Surveyors', desc: 'Our trained surveyors visit neighborhoods and document every property in person.', icon: Users },
-    { title: 'We Collect Data', desc: 'Photos, condition, features, and owner contact information from public records.', icon: Camera },
-    { title: 'We Verify & Update', desc: 'Data is verified and refreshed monthly. No stale lists.', icon: RefreshCw },
-    { title: 'You Get Leads', desc: 'Download fresh leads or integrate via API. Exclusive territories available.', icon: Download },
+    { title: 'Physical Verification', desc: 'Our surveyors visit neighborhoods in person to capture real-time ground truth.', icon: Users },
+    { title: 'AI Enrichment', desc: 'We cross-reference ground data with public records and AI-powered market analysis.', icon: Zap },
+    { title: 'Amenity Mapping', desc: 'We map every local amenity from schools to transit, providing a 360° property view.', icon: MapPin },
+    { title: 'Exclusive Leads', desc: 'Get verified, high-intent leads with data you can\'t find anywhere else.', icon: Download },
   ];
 
   const pricingTiers = [
@@ -73,11 +73,11 @@ export default function HomePage({ onNavigate }: HomeProps) {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-5xl md:text-8xl font-bold tracking-tight mb-8 leading-tight">
-              Fresh Property Leads <br />
-              <span className="text-accent">Delivered Monthly</span>
+              The Only <span className="text-accent">360° Property</span> <br />
+              Data Platform
             </h1>
             <p className="text-xl md:text-2xl text-text-muted max-w-3xl mx-auto mb-12 leading-relaxed">
-              Our surveyors visit homes in person. You get verified addresses, current photos, and owner data - updated every 30 days.
+              We combine human ground-truth with AI-powered market enrichment. Get verified photos, structural specs, local amenities, and safety scores — all under one umbrella.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <button 
@@ -160,16 +160,17 @@ export default function HomePage({ onNavigate }: HomeProps) {
             <div className="p-3 bg-accent text-background rounded-xl w-fit mb-8">
               <Zap className="w-6 h-6" />
             </div>
-            <h2 className="text-4xl font-bold mb-4">Prequalified Leads for Closers</h2>
-            <p className="text-text-muted mb-8 text-lg">For: Solar, Roofing, Insurance, Home Services</p>
+            <h2 className="text-4xl font-bold mb-4">Hyper-Enriched Leads for Closers</h2>
+            <p className="text-text-muted mb-8 text-lg">The most detailed property profiles in the industry.</p>
             
             <div className="space-y-6 mb-12">
               {[
-                'Property condition documented (know the opportunity)',
-                'Owner contact info verified',
-                'Photos of roof, exterior, yard',
-                'Buying intent signals',
-                'Exclusive territory (you\'re the only one)'
+                'Structural Specs (Sq Ft, Year Built, Beds/Baths)',
+                'Market Data (Estimated Value, Tax History, Last Sale)',
+                'Amenity Mapping (Closest Walmart, Schools, Transit)',
+                'Safety & Neighborhood Ratings',
+                'Verified Ground Photos (Roof, Exterior, Yard)',
+                'Exclusive Territory Rights'
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-accent shrink-0 mt-1" />
@@ -230,11 +231,11 @@ export default function HomePage({ onNavigate }: HomeProps) {
           <div className="bg-accent/10 border-b border-card-border p-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-background rounded-xl border border-card-border text-accent">
-                <MapPin className="w-6 h-6" />
+                <ShieldCheck className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-xl font-bold">1234 Oak Street, Phoenix, AZ 85018</h3>
-                <p className="text-text-muted text-sm">Owner: John & Mary Smith</p>
+                <p className="text-text-muted text-sm">Status: <span className="text-accent font-bold">Verified & Enriched</span></p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -249,59 +250,64 @@ export default function HomePage({ onNavigate }: HomeProps) {
             </div>
           </div>
           
-          <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div className="space-y-8">
-              <div>
-                <h4 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-4">Property Details</h4>
-                <div className="grid grid-cols-2 gap-y-4 gap-x-8">
+            <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="space-y-6">
+                <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Structural & Market</h4>
+                <div className="grid grid-cols-1 gap-3">
                   {[
-                    { label: 'Year Built', value: '1985' },
-                    { label: 'Roof', value: 'Shingle, Fair condition, 12 years old' },
-                    { label: 'Solar', value: 'None, Excellent exposure' },
-                    { label: 'HVAC', value: 'Visible unit, age unknown' },
-                    { label: 'Yard', value: '0.25 acres, maintained' },
-                    { label: 'Pool', value: 'Yes, in ground' },
+                    { label: 'Sq Ft', value: '2,450' },
+                    { label: 'Year Built', value: '1998' },
+                    { label: 'Est. Value', value: '$645,000' },
+                    { label: 'Last Sale', value: '$410k (2015)' },
+                    { label: 'Roof Condition', value: 'Fair (12 yrs)' },
                   ].map((detail, i) => (
-                    <div key={i} className="space-y-1">
-                      <p className="text-xs text-text-muted">{detail.label}</p>
-                      <p className="text-sm font-semibold">{detail.value}</p>
+                    <div key={i} className="flex justify-between items-center p-2 bg-background/50 rounded-lg border border-card-border">
+                      <span className="text-[10px] text-text-muted">{detail.label}</span>
+                      <span className="text-xs font-bold">{detail.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Amenities & Safety</h4>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    { label: 'Walmart', value: '1.2 mi (4 mins)' },
+                    { label: 'Grocery', value: 'Whole Foods (0.8 mi)' },
+                    { label: 'High School', value: 'Pinnacle High (A+)' },
+                    { label: 'Safety Score', value: 'Very Safe (94/100)' },
+                    { label: 'Highway', value: 'I-10 (2.5 mi)' },
+                  ].map((detail, i) => (
+                    <div key={i} className="flex justify-between items-center p-2 bg-background/50 rounded-lg border border-card-border">
+                      <span className="text-[10px] text-text-muted">{detail.label}</span>
+                      <span className="text-xs font-bold text-accent">{detail.value}</span>
                     </div>
                   ))}
                 </div>
               </div>
               
-              <div className="flex items-center justify-between p-4 bg-background rounded-xl border border-card-border">
-                <div className="flex items-center gap-3">
-                  <RefreshCw className="w-5 h-5 text-accent" />
-                  <div>
-                    <p className="text-xs text-text-muted uppercase tracking-widest font-bold">Data Freshness</p>
-                    <p className="text-sm font-bold">Updated 15 days ago</p>
-                  </div>
+              <div>
+                <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-4">Verified Ground Photos</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="aspect-video bg-background border border-card-border rounded-lg overflow-hidden group cursor-pointer">
+                      <img 
+                        src={`https://picsum.photos/seed/property-enrich-${i}/300/200`} 
+                        alt={`Property view ${i}`} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ))}
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-text-muted uppercase tracking-widest font-bold">Territory</p>
-                  <p className="text-sm font-bold text-accent">Available</p>
+                <div className="mt-4 p-3 bg-accent/5 rounded-xl border border-accent/20">
+                  <p className="text-[10px] text-text-muted leading-relaxed">
+                    <span className="text-accent font-bold">Surveyor Note:</span> Roof shows minor shingle lift on south side. Solar potential is high.
+                  </p>
                 </div>
               </div>
             </div>
-            
-            <div>
-              <h4 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-4">Current Photos</h4>
-              <div className="grid grid-cols-3 gap-3">
-                {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="aspect-square bg-background border border-card-border rounded-lg overflow-hidden group cursor-pointer">
-                    <img 
-                      src={`https://picsum.photos/seed/property-${i}/300/300`} 
-                      alt={`Property view ${i}`} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 text-xs text-text-muted italic text-center">Captured by Surveyor ID #842 on Feb 10, 2026</p>
-            </div>
-          </div>
         </div>
       </section>
 

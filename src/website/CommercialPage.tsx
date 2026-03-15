@@ -148,15 +148,15 @@ export default function CommercialPage() {
         <div className="glass-card p-12 bg-background/50">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <h2 className="text-4xl font-bold mb-6">Professional Property Reports</h2>
+              <h2 className="text-4xl font-bold mb-6">360° Enriched Property Reports</h2>
               <p className="text-text-muted mb-8 text-lg">
-                Our reports don't just show photos—they provide structured property data that your team can use to make better decisions faster.
+                Our reports don't just show photos—they provide a complete market and structural profile of every property, enriched by AI and verified by humans.
               </p>
               <div className="space-y-6">
                 {[
-                  { title: 'Property Documentation', desc: 'GPS-verified photos and condition data.', icon: Layout },
-                  { title: 'Condition Scoring', desc: 'Automated assessment based on property health.', icon: Zap },
-                  { title: 'Custom Checklists', desc: 'Tailored data points for your specific industry needs.', icon: FileText },
+                  { title: 'Structural & Market Enrichment', desc: 'Sq Ft, Year Built, Est. Value, and Tax History.', icon: Layout },
+                  { title: 'Amenity & Safety Mapping', desc: 'Driving distance to Walmart, schools, and transit.', icon: Zap },
+                  { title: 'Ground-Truth Verification', desc: 'GPS-verified photos of roof, exterior, and yard.', icon: FileText },
                 ].map((item, i) => (
                   <div key={i} className="flex gap-4">
                     <div className="p-2 bg-accent/10 rounded-lg text-accent h-fit">
