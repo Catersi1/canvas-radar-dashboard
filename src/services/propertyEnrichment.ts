@@ -30,19 +30,19 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
     return null;
   }
 
-  const apiKey = (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
+  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
                  (import.meta as any).env?.GEMINI_API_KEY || 
-                 (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                 (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
                  '';
+  
   if (!apiKey) {
-    console.error("GEMINI_API_KEY is missing. Please set it in the environment variables.");
+    console.error("CRITICAL: GEMINI_API_KEY is missing. Enrichment will fail.");
     return null;
   }
 
   const ai = new GoogleGenAI({ apiKey });
 
-  console.log(`Starting enrichment for: ${address}`);
-  console.log("Using API Key:", apiKey ? "Present (starts with " + apiKey.substring(0, 4) + ")" : "MISSING");
+  console.log(`[Enrichment] Processing address: "${address}"`);
 
   try {
     const prompt = `Search for detailed property information and nearby amenities for the address: ${address}. 
@@ -60,38 +60,16 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
     For each amenity, provide the name, driving distance (e.g., "5 mins"), and distance in miles.
     3. General safety of the area (rating like "Safe", "Very Safe", "Moderate" and a brief note).
     
-    Return the result as a JSON object with the following structure:
-    {
-      "sqft": number,
-      "year_built": number,
-      "last_sale_price": number,
-      "last_sale_date": string,
-      "lot_size": string,
-      "bedrooms": number,
-      "bathrooms": number,
-      "property_tax": number,
-      "estimated_value": number,
-      "neighborhood_rating": string,
-      "source_url": string,
-      "closest_grocery": { "name": string, "distance": string, "miles": number },
-      "closest_highway": { "name": string, "distance": string, "miles": number },
-      "closest_elementary": { "name": string, "distance": string, "miles": number },
-      "closest_middle": { "name": string, "distance": string, "miles": number },
-      "closest_high": { "name": string, "distance": string, "miles": number },
-      "closest_gas": { "name": string, "distance": string, "miles": number },
-      "closest_walmart": { "name": string, "distance": string, "miles": number },
-      "closest_restaurant": { "name": string, "distance": string, "miles": number },
-      "safety_rating": string,
-      "safety_notes": string
-    }`;
+    Return the result as a JSON object matching the requested schema. If you cannot find exact data for this specific address, provide realistic estimates based on the neighborhood and similar properties in ${address.split(',').slice(1).join(',').trim()}.`;
 
-    console.log("Calling Gemini API with gemini-2.5-flash...");
+    console.log("[Enrichment] Calling Gemini API (Primary: with Search)...");
     let response;
     try {
       response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
+          systemInstruction: "You are a property data enrichment expert. Your goal is to find accurate real estate information and local amenities for a given address. Always return data in the requested JSON format. If specific data points are unavailable, provide your best estimate based on the neighborhood, but ensure the JSON structure is valid and all fields are present.",
           tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           responseSchema: {
@@ -146,12 +124,13 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
           },
         },
       });
-    } catch (toolError) {
-      console.warn("Gemini with googleSearch failed, retrying without tools...", toolError);
+    } catch (toolError: any) {
+      console.warn("[Enrichment] Primary call failed (likely tool or quota issue). Retrying without tools...", toolError.message || toolError);
       response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt + "\n\nNote: If you cannot search the web, provide realistic estimates based on your internal knowledge of the area.",
+        model: "gemini-3-flash-preview",
+        contents: prompt + "\n\nNote: If you cannot search the web, provide realistic estimates based on your internal knowledge of the area and neighborhood.",
         config: {
+          systemInstruction: "You are a property data enrichment expert. Return JSON data. Use your internal knowledge to provide the best possible estimates for the area if search is unavailable.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -207,25 +186,26 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
       });
     }
 
-    console.log("Gemini API response received.");
-    const text = response.text;
+    console.log("[Enrichment] Response received from Gemini.");
+    let text = response.text;
     if (!text) {
-      console.warn("No text returned from Gemini for enrichment. Response object:", response);
+      console.warn("[Enrichment] Empty response text from Gemini.");
       return null;
     }
 
+    // Clean up text in case it has markdown backticks
+    text = text.replace(/```json\n?/, '').replace(/```\n?$/, '').trim();
+
     try {
       const result = JSON.parse(text);
-      console.log("Enrichment successful:", result);
+      console.log("[Enrichment] Successfully parsed JSON result.");
       return result;
     } catch (parseError) {
-      console.error("Failed to parse Gemini response as JSON. Text:", text, "Error:", parseError);
+      console.error("[Enrichment] JSON Parse Error. Raw text:", text);
       return null;
     }
   } catch (error: any) {
-    console.error("Error enriching property data:", error);
-    if (error.message) console.error("Error message:", error.message);
-    if (error.stack) console.error("Error stack:", error.stack);
+    console.error("[Enrichment] Fatal Error:", error.message || error);
     return null;
   }
 }

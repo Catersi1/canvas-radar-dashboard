@@ -48,7 +48,9 @@ export default function Surveys() {
 
     for (const survey of toEnrich) {
       try {
-        const result = await enrichPropertyData(survey.properties?.address || '');
+        const fullAddress = `${survey.properties?.address}, ${survey.properties?.city}, ${survey.properties?.state} ${survey.properties?.zip}`;
+        console.log(`Attempting enrichment for: ${fullAddress}`);
+        const result = await enrichPropertyData(fullAddress);
         if (result) {
           await handleUpdate(survey.id, {
             sqft: result.sqft,
