@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = (import.meta as any).env.GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : '');
+const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY || (import.meta as any).env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
 export async function findPropertyPhoto(address: string, lat?: number, lng?: number) {
@@ -20,7 +20,7 @@ export async function findPropertyPhoto(address: string, lat?: number, lng?: num
     }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -28,7 +28,14 @@ export async function findPropertyPhoto(address: string, lat?: number, lng?: num
       },
     });
 
-    const result = JSON.parse(response.text || '{}');
+    let text = response.text || '{}';
+    // Clean up text in case it has markdown backticks or other noise
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      text = jsonMatch[0];
+    }
+    
+    const result = JSON.parse(text);
     
     // Validate if it's a real URL or just a placeholder string
     const isValidUrl = (url: string) => {

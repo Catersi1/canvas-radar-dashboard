@@ -1,4 +1,5 @@
 import { Property, Survey } from '../types/dashboard';
+import { getFromCache } from './cache';
 
 export const generateMockData = () => {
   const properties: Property[] = [];
@@ -36,6 +37,9 @@ export const generateMockData = () => {
     const submittedAt = new Date(new Date(property.created_at).getTime() + 3600000);
     const isRecent = (Date.now() - submittedAt.getTime()) < (2 * 24 * 60 * 60 * 1000); // Last 2 days
 
+    // Check cache for this survey's ID
+    const cachedData = getFromCache(`surv-${i}`);
+
     const survey: Survey = {
       id: `surv-${i}`,
       property_id: property.id,
@@ -57,6 +61,7 @@ export const generateMockData = () => {
       submitted_at: submittedAt.toISOString(),
       properties: property,
       enrichment_status: 'none',
+      ...cachedData // Merge cached data if it exists
     };
 
     if (type === 'commercial') {

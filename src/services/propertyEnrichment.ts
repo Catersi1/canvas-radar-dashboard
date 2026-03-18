@@ -32,11 +32,11 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
 
   const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
                  (import.meta as any).env?.GEMINI_API_KEY || 
-                 (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
+                 process.env.GEMINI_API_KEY || 
                  '';
   
-  if (!apiKey) {
-    console.error("CRITICAL: GEMINI_API_KEY is missing. Enrichment will fail.");
+  if (!apiKey || apiKey === 'undefined') {
+    console.error("CRITICAL: GEMINI_API_KEY is missing or undefined. Enrichment will fail.");
     return null;
   }
 
@@ -66,7 +66,7 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
     let response;
     try {
       response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.1-pro-preview",
         contents: prompt,
         config: {
           systemInstruction: "You are a property data enrichment expert. Your goal is to find accurate real estate information and local amenities for a given address. Always return data in the requested JSON format. If specific data points are unavailable, provide your best estimate based on the neighborhood, but ensure the JSON structure is valid and all fields are present.",
@@ -127,7 +127,7 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
     } catch (toolError: any) {
       console.warn("[Enrichment] Primary call failed (likely tool or quota issue). Retrying without tools...", toolError.message || toolError);
       response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.1-pro-preview",
         contents: prompt + "\n\nNote: If you cannot search the web, provide realistic estimates based on your internal knowledge of the area and neighborhood.",
         config: {
           systemInstruction: "You are a property data enrichment expert. Return JSON data. Use your internal knowledge to provide the best possible estimates for the area if search is unavailable.",
@@ -193,8 +193,13 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
       return null;
     }
 
-    // Clean up text in case it has markdown backticks
-    text = text.replace(/```json\n?/, '').replace(/```\n?$/, '').trim();
+    // Clean up text in case it has markdown backticks or other noise
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      text = jsonMatch[0];
+    } else {
+      text = text.replace(/```json\n?/, '').replace(/```\n?$/, '').trim();
+    }
 
     try {
       const result = JSON.parse(text);
@@ -202,6 +207,17 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
       return result;
     } catch (parseError) {
       console.error("[Enrichment] JSON Parse Error. Raw text:", text);
+      // Try one more time with a more aggressive cleanup if it looks like it has text around it
+      try {
+        const start = text.indexOf('{');
+        const end = text.lastIndexOf('}') + 1;
+        if (start >= 0 && end > start) {
+          const cleaned = text.substring(start, end);
+          return JSON.parse(cleaned);
+        }
+      } catch (innerError) {
+        console.error("[Enrichment] Aggressive JSON Parse Error:", innerError);
+      }
       return null;
     }
   } catch (error: any) {

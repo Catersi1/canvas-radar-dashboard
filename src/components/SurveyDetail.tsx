@@ -92,7 +92,9 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
     console.log("Enriching property for address:", survey.properties?.address);
     setIsEnriching(true);
     try {
-      const result = await enrichPropertyData(survey.properties?.address || '');
+      const fullAddress = `${survey.properties?.address}, ${survey.properties?.city}, ${survey.properties?.state} ${survey.properties?.zip}`;
+      console.log("Enriching property for address:", fullAddress);
+      const result = await enrichPropertyData(fullAddress);
       console.log("Enrichment result:", result);
       if (result && onUpdate) {
         onUpdate(survey.id, {

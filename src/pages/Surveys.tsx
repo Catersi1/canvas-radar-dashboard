@@ -14,7 +14,8 @@ import {
   Eye,
   Trash2,
   RefreshCcw,
-  TrendingUp
+  TrendingUp,
+  Globe
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
@@ -24,7 +25,7 @@ import SurveyDetail from '../components/SurveyDetail';
 import { findPropertyPhoto } from '../services/propertySearch';
 import { enrichPropertyData } from '../services/propertyEnrichment';
 import { supabase } from '../lib/supabase';
-import { Globe } from 'lucide-react';
+import { saveToCache } from '../lib/cache';
 
 export default function Surveys() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,9 +34,18 @@ export default function Surveys() {
   const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
   const [isAutoFetching, setIsAutoFetching] = useState(false);
   const [isAutoEnriching, setIsAutoEnriching] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
+  const [apiKeyMissing, setApiKeyMissing] = useState(false);
+
+  React.useEffect(() => {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key || key === 'undefined') {
+      setApiKeyMissing(true);
+    }
+  }, []);
 
   const autoEnrichProperties = async (surveysList: Survey[], forceAll = false) => {
-    if (isAutoEnriching) return;
+    if (isAutoEnriching || !!syncProgress || apiKeyMissing) return;
     
     const toEnrich = surveysList.filter(s => 
       s.enrichment_status === 'none' || (forceAll && s.enrichment_status === 'failed')
@@ -88,12 +98,14 @@ export default function Surveys() {
           enrichment_status: 'failed'
         });
       }
+      // Small delay to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     setIsAutoEnriching(false);
   };
 
   const fetchMissingPhotos = async (surveysList: Survey[]) => {
-    if (isAutoFetching) return;
+    if (isAutoFetching || !!syncProgress) return;
     setIsAutoFetching(true);
     
     const surveysToFetch = surveysList.filter(s => !s.external_photo_url).slice(0, 5);
@@ -127,8 +139,91 @@ export default function Surveys() {
     setIsAutoFetching(false);
   };
 
+  const syncLibrary = async () => {
+    if (isAutoEnriching || isAutoFetching) return;
+    
+    const toProcess = surveys.filter(s => 
+      s.enrichment_status !== 'complete' || !s.external_photo_url
+    );
+    
+    if (toProcess.length === 0) {
+      alert("Library is already fully enriched and has all photos.");
+      return;
+    }
+
+    setSyncProgress({ current: 0, total: toProcess.length });
+    
+    for (let i = 0; i < toProcess.length; i++) {
+      const survey = toProcess[i];
+      setSyncProgress({ current: i + 1, total: toProcess.length });
+      
+      // 1. Enrich Data if needed
+      if (survey.enrichment_status !== 'complete') {
+        try {
+          const fullAddress = `${survey.properties?.address}, ${survey.properties?.city}, ${survey.properties?.state} ${survey.properties?.zip}`;
+          const result = await enrichPropertyData(fullAddress);
+          if (result) {
+            await handleUpdate(survey.id, {
+              sqft: result.sqft,
+              year_built: result.year_built,
+              last_sale_price: result.last_sale_price,
+              last_sale_date: result.last_sale_date,
+              lot_size: result.lot_size,
+              bedrooms: result.bedrooms,
+              bathrooms: result.bathrooms,
+              property_tax: result.property_tax,
+              estimated_value: result.estimated_value,
+              neighborhood_rating: result.neighborhood_rating,
+              closest_grocery: result.closest_grocery,
+              closest_highway: result.closest_highway,
+              closest_elementary: result.closest_elementary,
+              closest_middle: result.closest_middle,
+              closest_high: result.closest_high,
+              closest_gas: result.closest_gas,
+              closest_walmart: result.closest_walmart,
+              closest_restaurant: result.closest_restaurant,
+              safety_rating: result.safety_rating,
+              safety_notes: result.safety_notes,
+              enrichment_source: result.source_url,
+              enrichment_status: 'complete'
+            });
+          } else {
+            await handleUpdate(survey.id, { enrichment_status: 'failed' });
+          }
+        } catch (e) {
+          console.error("Sync enrichment error:", e);
+        }
+      }
+
+      // 2. Fetch Photo if needed
+      if (!survey.external_photo_url) {
+        try {
+          const result = await findPropertyPhoto(
+            survey.properties?.address || '',
+            survey.properties?.lat,
+            survey.properties?.lng
+          );
+          if (result.imageUrl) {
+            await handleUpdate(survey.id, {
+              external_photo_url: result.imageUrl,
+              external_source_url: result.sourceUrl
+            });
+          }
+        } catch (e) {
+          console.error("Sync photo error:", e);
+        }
+      }
+      
+      // Small delay to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    setSyncProgress(null);
+    alert("Library sync complete!");
+  };
+
   React.useEffect(() => {
-    if (surveys.length > 0) {
+    if (surveys.length > 0 && !syncProgress) {
       fetchMissingPhotos(surveys);
       
       // Only trigger auto-enrich if not already enriching
@@ -137,7 +232,7 @@ export default function Surveys() {
         autoEnrichProperties(surveys);
       }
     }
-  }, [surveys, isAutoEnriching]);
+  }, [surveys, isAutoEnriching, syncProgress]);
 
   const handleApprove = (id: string) => {
     setSurveys(prev => prev.map(s => 
@@ -160,6 +255,9 @@ export default function Surveys() {
     
     // Update local state
     setSurveys(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    
+    // Save to cache for persistence across mock data resets
+    saveToCache(id, updates);
     
     // Update selected survey if it's the one being updated
     setSelectedSurvey(prev => {
@@ -212,21 +310,28 @@ export default function Surveys() {
           <p className="text-text-muted mt-1">Track and review property survey progress.</p>
         </div>
         <div className="flex items-center gap-3">
+          {apiKeyMissing && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold animate-pulse">
+              <AlertCircle className="w-4 h-4" />
+              API Key Missing
+            </div>
+          )}
+          {syncProgress && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl animate-pulse">
+              <RefreshCcw className="w-4 h-4 text-accent animate-spin" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-accent uppercase tracking-widest">Syncing Library</span>
+                <span className="text-xs text-white font-mono">{syncProgress.current} / {syncProgress.total}</span>
+              </div>
+            </div>
+          )}
           <button 
-            onClick={() => autoEnrichProperties(surveys, true)}
-            disabled={isAutoEnriching}
-            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg transition-all border border-emerald-500/20 disabled:opacity-50"
+            onClick={syncLibrary}
+            disabled={isAutoEnriching || isAutoFetching || !!syncProgress}
+            className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-black text-sm font-bold rounded-xl transition-all shadow-lg shadow-accent/20 disabled:opacity-50"
           >
-            <TrendingUp className={cn("w-3.5 h-3.5", isAutoEnriching && "animate-spin")} />
-            {isAutoEnriching ? 'Enriching...' : 'Enrich All Data'}
-          </button>
-          <button 
-            onClick={() => fetchMissingPhotos(surveys)}
-            disabled={isAutoFetching}
-            className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold rounded-lg transition-all border border-blue-500/20 disabled:opacity-50"
-          >
-            <Globe className={cn("w-3.5 h-3.5", isAutoFetching && "animate-spin")} />
-            {isAutoFetching ? 'Fetching Photos...' : 'Fetch Missing Photos'}
+            <RefreshCcw className={cn("w-4 h-4", (isAutoEnriching || isAutoFetching || !!syncProgress) && "animate-spin")} />
+            {syncProgress ? 'Syncing...' : 'Sync Library'}
           </button>
           <button className="btn-secondary">
             <Download className="w-4 h-4" />
