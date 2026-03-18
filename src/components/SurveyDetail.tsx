@@ -94,35 +94,42 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
     try {
       const fullAddress = `${survey.properties?.address}, ${survey.properties?.city}, ${survey.properties?.state} ${survey.properties?.zip}`;
       console.log("Enriching property for address:", fullAddress);
-      const result = await enrichPropertyData(fullAddress);
-      console.log("Enrichment result:", result);
-      if (result && onUpdate) {
+      const { data, error } = await enrichPropertyData(fullAddress);
+      console.log("Enrichment result:", { data, error });
+      if (data && onUpdate) {
         onUpdate(survey.id, {
-          sqft: result.sqft,
-          year_built: result.year_built,
-          last_sale_price: result.last_sale_price,
-          last_sale_date: result.last_sale_date,
-          lot_size: result.lot_size,
-          bedrooms: result.bedrooms,
-          bathrooms: result.bathrooms,
-          property_tax: result.property_tax,
-          estimated_value: result.estimated_value,
-          neighborhood_rating: result.neighborhood_rating,
-          closest_grocery: result.closest_grocery,
-          closest_highway: result.closest_highway,
-          closest_elementary: result.closest_elementary,
-          closest_middle: result.closest_middle,
-          closest_high: result.closest_high,
-          closest_gas: result.closest_gas,
-          closest_walmart: result.closest_walmart,
-          closest_restaurant: result.closest_restaurant,
-          safety_rating: result.safety_rating,
-          safety_notes: result.safety_notes,
-          enrichment_source: result.source_url,
-          enrichment_status: 'complete'
+          sqft: data.sqft,
+          year_built: data.year_built,
+          last_sale_price: data.last_sale_price,
+          last_sale_date: data.last_sale_date,
+          lot_size: data.lot_size,
+          bedrooms: data.bedrooms,
+          bathrooms: data.bathrooms,
+          property_tax: data.property_tax,
+          estimated_value: data.estimated_value,
+          neighborhood_rating: data.neighborhood_rating,
+          closest_grocery: data.closest_grocery,
+          closest_highway: data.closest_highway,
+          closest_elementary: data.closest_elementary,
+          closest_middle: data.closest_middle,
+          closest_high: data.closest_high,
+          closest_gas: data.closest_gas,
+          closest_walmart: data.closest_walmart,
+          closest_restaurant: data.closest_restaurant,
+          safety_rating: data.safety_rating,
+          safety_notes: data.safety_notes,
+          enrichment_source: data.source_url,
+          enrichment_status: 'complete',
+          enrichment_error: undefined
         });
-      } else if (!result) {
-        alert("Enrichment failed. Please check the console for details or try again later.");
+      } else {
+        if (onUpdate) {
+          onUpdate(survey.id, {
+            enrichment_status: 'failed',
+            enrichment_error: error || "Failed to enrich property data"
+          });
+        }
+        alert(`Enrichment failed: ${error || "Unknown error"}. Please check the console for details.`);
       }
     } catch (error) {
       console.error("Failed to enrich property data:", error);
@@ -474,8 +481,8 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
                       <AlertTriangle className="w-6 h-6" />
                     </div>
                     <p className="text-sm font-bold text-red-400 mb-1">Enrichment Failed</p>
-                    <p className="text-xs text-slate-500 mb-4 max-w-[200px]">
-                      We couldn't find enough public data for this address. Check the console for details or try again.
+                    <p className="text-xs text-slate-500 mb-4 max-w-[280px]">
+                      {survey.enrichment_error || "We couldn't find enough public data for this address. Check the console for details or try again."}
                     </p>
                     <button 
                       onClick={handleEnrichProperty}

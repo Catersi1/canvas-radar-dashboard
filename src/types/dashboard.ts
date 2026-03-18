@@ -57,6 +57,7 @@ export interface Survey {
   neighborhood_rating?: string;
   enrichment_status?: 'none' | 'pending' | 'complete' | 'failed';
   enrichment_source?: string;
+  enrichment_error?: string;
 
   // Location & Amenities Data
   closest_grocery?: { name: string; distance: string; miles: number };

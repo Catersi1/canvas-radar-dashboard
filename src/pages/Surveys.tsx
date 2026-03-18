@@ -61,35 +61,37 @@ export default function Surveys() {
         const fullAddress = `${survey.properties?.address}, ${survey.properties?.city}, ${survey.properties?.state} ${survey.properties?.zip}`;
         console.log(`Attempting enrichment for: ${fullAddress}`);
         const result = await enrichPropertyData(fullAddress);
-        if (result) {
+        if (result.data) {
           await handleUpdate(survey.id, {
-            sqft: result.sqft,
-            year_built: result.year_built,
-            last_sale_price: result.last_sale_price,
-            last_sale_date: result.last_sale_date,
-            lot_size: result.lot_size,
-            bedrooms: result.bedrooms,
-            bathrooms: result.bathrooms,
-            property_tax: result.property_tax,
-            estimated_value: result.estimated_value,
-            neighborhood_rating: result.neighborhood_rating,
-            closest_grocery: result.closest_grocery,
-            closest_highway: result.closest_highway,
-            closest_elementary: result.closest_elementary,
-            closest_middle: result.closest_middle,
-            closest_high: result.closest_high,
-            closest_gas: result.closest_gas,
-            closest_walmart: result.closest_walmart,
-            closest_restaurant: result.closest_restaurant,
-            safety_rating: result.safety_rating,
-            safety_notes: result.safety_notes,
-            enrichment_source: result.source_url,
-            enrichment_status: 'complete'
+            sqft: result.data.sqft,
+            year_built: result.data.year_built,
+            last_sale_price: result.data.last_sale_price,
+            last_sale_date: result.data.last_sale_date,
+            lot_size: result.data.lot_size,
+            bedrooms: result.data.bedrooms,
+            bathrooms: result.data.bathrooms,
+            property_tax: result.data.property_tax,
+            estimated_value: result.data.estimated_value,
+            neighborhood_rating: result.data.neighborhood_rating,
+            closest_grocery: result.data.closest_grocery,
+            closest_highway: result.data.closest_highway,
+            closest_elementary: result.data.closest_elementary,
+            closest_middle: result.data.closest_middle,
+            closest_high: result.data.closest_high,
+            closest_gas: result.data.closest_gas,
+            closest_walmart: result.data.closest_walmart,
+            closest_restaurant: result.data.closest_restaurant,
+            safety_rating: result.data.safety_rating,
+            safety_notes: result.data.safety_notes,
+            enrichment_source: result.data.source_url,
+            enrichment_status: 'complete',
+            enrichment_error: undefined
           });
         } else {
           // Mark as failed so we don't keep retrying immediately
           await handleUpdate(survey.id, {
-            enrichment_status: 'failed'
+            enrichment_status: 'failed',
+            enrichment_error: result.error || "Failed to enrich property data"
           });
         }
       } catch (e) {
@@ -162,33 +164,37 @@ export default function Surveys() {
         try {
           const fullAddress = `${survey.properties?.address}, ${survey.properties?.city}, ${survey.properties?.state} ${survey.properties?.zip}`;
           const result = await enrichPropertyData(fullAddress);
-          if (result) {
+          if (result.data) {
             await handleUpdate(survey.id, {
-              sqft: result.sqft,
-              year_built: result.year_built,
-              last_sale_price: result.last_sale_price,
-              last_sale_date: result.last_sale_date,
-              lot_size: result.lot_size,
-              bedrooms: result.bedrooms,
-              bathrooms: result.bathrooms,
-              property_tax: result.property_tax,
-              estimated_value: result.estimated_value,
-              neighborhood_rating: result.neighborhood_rating,
-              closest_grocery: result.closest_grocery,
-              closest_highway: result.closest_highway,
-              closest_elementary: result.closest_elementary,
-              closest_middle: result.closest_middle,
-              closest_high: result.closest_high,
-              closest_gas: result.closest_gas,
-              closest_walmart: result.closest_walmart,
-              closest_restaurant: result.closest_restaurant,
-              safety_rating: result.safety_rating,
-              safety_notes: result.safety_notes,
-              enrichment_source: result.source_url,
-              enrichment_status: 'complete'
+              sqft: result.data.sqft,
+              year_built: result.data.year_built,
+              last_sale_price: result.data.last_sale_price,
+              last_sale_date: result.data.last_sale_date,
+              lot_size: result.data.lot_size,
+              bedrooms: result.data.bedrooms,
+              bathrooms: result.data.bathrooms,
+              property_tax: result.data.property_tax,
+              estimated_value: result.data.estimated_value,
+              neighborhood_rating: result.data.neighborhood_rating,
+              closest_grocery: result.data.closest_grocery,
+              closest_highway: result.data.closest_highway,
+              closest_elementary: result.data.closest_elementary,
+              closest_middle: result.data.closest_middle,
+              closest_high: result.data.closest_high,
+              closest_gas: result.data.closest_gas,
+              closest_walmart: result.data.closest_walmart,
+              closest_restaurant: result.data.closest_restaurant,
+              safety_rating: result.data.safety_rating,
+              safety_notes: result.data.safety_notes,
+              enrichment_source: result.data.source_url,
+              enrichment_status: 'complete',
+              enrichment_error: undefined
             });
           } else {
-            await handleUpdate(survey.id, { enrichment_status: 'failed' });
+            await handleUpdate(survey.id, { 
+              enrichment_status: 'failed',
+              enrichment_error: result.error || "Failed to enrich property data"
+            });
           }
         } catch (e) {
           console.error("Sync enrichment error:", e);
@@ -418,6 +424,19 @@ export default function Surveys() {
                       <config.icon className="w-3 h-3" />
                       {survey.status === 'pending' ? 'Review Required' : survey.status}
                     </div>
+                    {survey.enrichment_status === 'failed' && (
+                      <div className="mt-1 flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1 text-[10px] text-red-400 font-medium">
+                          <AlertCircle className="w-2.5 h-2.5" />
+                          Enrichment Failed
+                        </div>
+                        {survey.enrichment_error && (
+                          <span className="text-[9px] text-red-400/60 truncate max-w-[120px] font-mono" title={survey.enrichment_error}>
+                            {survey.enrichment_error}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-text-muted">
                     {survey.submitted_at ? format(new Date(survey.submitted_at), 'MMM d, yyyy HH:mm') : 'N/A'}

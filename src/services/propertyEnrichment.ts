@@ -24,21 +24,31 @@ export interface EnrichedPropertyData {
   safety_notes?: string;
 }
 
-export async function enrichPropertyData(address: string): Promise<EnrichedPropertyData | null> {
+export interface EnrichmentResult {
+  data: EnrichedPropertyData | null;
+  error?: string;
+}
+
+export async function enrichPropertyData(address: string): Promise<EnrichmentResult> {
   if (!address || address.trim() === '') {
     console.warn("Empty address provided for enrichment.");
-    return null;
+    return { data: null, error: "Empty address provided" };
   }
 
-  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+  const apiKey = process.env.GEMINI_API_KEY || 
+                 (import.meta as any).env?.VITE_GEMINI_API_KEY || 
                  (import.meta as any).env?.GEMINI_API_KEY || 
-                 process.env.GEMINI_API_KEY || 
                  '';
   
   if (!apiKey || apiKey === 'undefined') {
-    console.error("CRITICAL: GEMINI_API_KEY is missing or undefined. Enrichment will fail.");
-    return null;
+    const msg = "CRITICAL: GEMINI_API_KEY is missing or undefined. Enrichment will fail.";
+    console.error(msg);
+    return { data: null, error: "API Key Missing" };
   }
+
+  // Masked key for logging
+  const maskedKey = apiKey.substring(0, 4) + "..." + apiKey.substring(apiKey.length - 4);
+  console.log(`[Enrichment] Using API Key: ${maskedKey}`);
 
   const ai = new GoogleGenAI({ apiKey });
 
@@ -66,7 +76,7 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
     let response;
     try {
       response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
           systemInstruction: "You are a property data enrichment expert. Your goal is to find accurate real estate information and local amenities for a given address. Always return data in the requested JSON format. If specific data points are unavailable, provide your best estimate based on the neighborhood, but ensure the JSON structure is valid and all fields are present.",
@@ -126,71 +136,79 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
       });
     } catch (toolError: any) {
       console.warn("[Enrichment] Primary call failed (likely tool or quota issue). Retrying without tools...", toolError.message || toolError);
-      response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: prompt + "\n\nNote: If you cannot search the web, provide realistic estimates based on your internal knowledge of the area and neighborhood.",
-        config: {
-          systemInstruction: "You are a property data enrichment expert. Return JSON data. Use your internal knowledge to provide the best possible estimates for the area if search is unavailable.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              sqft: { type: Type.NUMBER },
-              year_built: { type: Type.NUMBER },
-              last_sale_price: { type: Type.NUMBER },
-              last_sale_date: { type: Type.STRING },
-              lot_size: { type: Type.STRING },
-              bedrooms: { type: Type.NUMBER },
-              bathrooms: { type: Type.NUMBER },
-              property_tax: { type: Type.NUMBER },
-              estimated_value: { type: Type.NUMBER },
-              neighborhood_rating: { type: Type.STRING },
-              source_url: { type: Type.STRING },
-              closest_grocery: { 
-                type: Type.OBJECT,
-                properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
+      
+      // If it's a quota or key issue, the second call will also fail. 
+      // Let's try to catch that too.
+      try {
+        response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: prompt + "\n\nNote: If you cannot search the web, provide realistic estimates based on your internal knowledge of the area and neighborhood.",
+          config: {
+            systemInstruction: "You are a property data enrichment expert. Return JSON data. Use your internal knowledge to provide the best possible estimates for the area if search is unavailable.",
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                sqft: { type: Type.NUMBER },
+                year_built: { type: Type.NUMBER },
+                last_sale_price: { type: Type.NUMBER },
+                last_sale_date: { type: Type.STRING },
+                lot_size: { type: Type.STRING },
+                bedrooms: { type: Type.NUMBER },
+                bathrooms: { type: Type.NUMBER },
+                property_tax: { type: Type.NUMBER },
+                estimated_value: { type: Type.NUMBER },
+                neighborhood_rating: { type: Type.STRING },
+                source_url: { type: Type.STRING },
+                closest_grocery: { 
+                  type: Type.OBJECT,
+                  properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
+                },
+                closest_highway: { 
+                  type: Type.OBJECT,
+                  properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
+                },
+                closest_elementary: { 
+                  type: Type.OBJECT,
+                  properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
+                },
+                closest_middle: { 
+                  type: Type.OBJECT,
+                  properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
+                },
+                closest_high: { 
+                  type: Type.OBJECT,
+                  properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
+                },
+                closest_gas: { 
+                  type: Type.OBJECT,
+                  properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
+                },
+                closest_walmart: { 
+                  type: Type.OBJECT,
+                  properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
+                },
+                closest_restaurant: { 
+                  type: Type.OBJECT,
+                  properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
+                },
+                safety_rating: { type: Type.STRING },
+                safety_notes: { type: Type.STRING },
               },
-              closest_highway: { 
-                type: Type.OBJECT,
-                properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
-              },
-              closest_elementary: { 
-                type: Type.OBJECT,
-                properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
-              },
-              closest_middle: { 
-                type: Type.OBJECT,
-                properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
-              },
-              closest_high: { 
-                type: Type.OBJECT,
-                properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
-              },
-              closest_gas: { 
-                type: Type.OBJECT,
-                properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
-              },
-              closest_walmart: { 
-                type: Type.OBJECT,
-                properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
-              },
-              closest_restaurant: { 
-                type: Type.OBJECT,
-                properties: { name: { type: Type.STRING }, distance: { type: Type.STRING }, miles: { type: Type.NUMBER } }
-              },
-              safety_rating: { type: Type.STRING },
-              safety_notes: { type: Type.STRING },
             },
           },
-        },
-      });
+        });
+      } catch (retryError: any) {
+        console.error("[Enrichment] Retry call also failed:", retryError.message || retryError);
+        return { data: null, error: retryError.message || "API Call Failed" };
+      }
     }
 
     console.log("[Enrichment] Response received from Gemini.");
     let text = response.text;
     if (!text) {
       console.warn("[Enrichment] Empty response text from Gemini.");
-      return null;
+      return { data: null, error: "Empty response from AI" };
     }
 
     // Clean up text in case it has markdown backticks or other noise
@@ -204,8 +222,8 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
     try {
       const result = JSON.parse(text);
       console.log("[Enrichment] Successfully parsed JSON result.");
-      return result;
-    } catch (parseError) {
+      return { data: result };
+    } catch (parseError: any) {
       console.error("[Enrichment] JSON Parse Error. Raw text:", text);
       // Try one more time with a more aggressive cleanup if it looks like it has text around it
       try {
@@ -213,15 +231,15 @@ export async function enrichPropertyData(address: string): Promise<EnrichedPrope
         const end = text.lastIndexOf('}') + 1;
         if (start >= 0 && end > start) {
           const cleaned = text.substring(start, end);
-          return JSON.parse(cleaned);
+          return { data: JSON.parse(cleaned) };
         }
-      } catch (innerError) {
+      } catch (innerError: any) {
         console.error("[Enrichment] Aggressive JSON Parse Error:", innerError);
       }
-      return null;
+      return { data: null, error: "Failed to parse AI response" };
     }
   } catch (error: any) {
     console.error("[Enrichment] Fatal Error:", error.message || error);
-    return null;
+    return { data: null, error: error.message || "Unknown Enrichment Error" };
   }
 }
