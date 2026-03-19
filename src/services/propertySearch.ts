@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-export async function findPropertyPhoto(address: string, lat?: number, lng?: number) {
+export async function findPropertyPhoto(address: string, lat?: number, lng?: number, skipMaps: boolean = false) {
   const rawApiKey = process.env.GEMINI_API_KEY || 
                    process.env.VITE_GEMINI_API_KEY ||
                    (import.meta as any).env?.VITE_GEMINI_API_KEY || 
@@ -16,7 +16,7 @@ export async function findPropertyPhoto(address: string, lat?: number, lng?: num
   const gmapsKey = (mapsApiKey && mapsApiKey !== 'undefined' && mapsApiKey !== 'null' && mapsApiKey.trim() !== '') ? mapsApiKey.trim() : '';
   
   // If we have a Google Maps key, we can use the Street View Static API directly
-  if (gmapsKey) {
+  if (gmapsKey && !skipMaps) {
     console.log(`[Photo Search] Using Google Maps Street View Static API for: ${address}`);
     const baseUrl = "https://maps.googleapis.com/maps/api/streetview";
     const params = new URLSearchParams({
@@ -25,7 +25,9 @@ export async function findPropertyPhoto(address: string, lat?: number, lng?: num
       key: gmapsKey,
       fov: "90",
       heading: "0",
-      pitch: "0"
+      pitch: "0",
+      radius: "50", // Search within 50 meters for a panorama
+      source: "outdoor" // Prefer outdoor panoramas
     });
     
     // If we have lat/lng, use them for better accuracy

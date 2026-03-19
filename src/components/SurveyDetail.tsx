@@ -57,17 +57,21 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
   const [isApproving, setIsApproving] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
   const [currentPhotos, setCurrentPhotos] = useState<string[]>(
     Array.from({ length: 6 }).map((_, i) => `https://picsum.photos/seed/property-${survey.id}-${i}/600/400`)
   );
 
-  const handleFetchExternalPhoto = async () => {
+  const handleFetchExternalPhoto = async (skipMaps: boolean = false) => {
     setIsSearching(true);
+    setPhotoError(false);
     try {
+      const fullAddress = `${survey.properties?.address || ''}, ${survey.properties?.city || ''}, ${survey.properties?.state || ''} ${survey.properties?.zip || ''}`;
       const result = await findPropertyPhoto(
-        survey.properties?.address || '',
+        fullAddress,
         survey.properties?.lat,
-        survey.properties?.lng
+        survey.properties?.lng,
+        skipMaps
       );
       
       if (onUpdate) {
@@ -206,7 +210,21 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
                   alt="Street View Reference" 
                   className="w-full aspect-video object-cover transition-transform duration-500 group-hover:scale-105"
                   referrerPolicy="no-referrer"
+                  onError={() => setPhotoError(true)}
                 />
+                {photoError && (
+                  <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
+                    <AlertTriangle className="w-8 h-8 text-amber-500 mb-2" />
+                    <p className="text-xs font-bold text-slate-300 mb-2">Street View Image Unavailable</p>
+                    <p className="text-[10px] text-slate-500 mb-4">The Google Maps API returned an error or no panorama was found for this location.</p>
+                    <button 
+                      onClick={() => handleFetchExternalPhoto(true)}
+                      className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-[10px] font-bold rounded-lg transition-all border border-blue-500/30"
+                    >
+                      Retry with AI Search
+                    </button>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
                   <a 
                     href={survey.external_source_url} 
@@ -347,7 +365,7 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
                     </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 mb-4">
                   {currentPhotos.map((photo, i) => (
                     <div key={i} className="aspect-video bg-slate-900 rounded-lg overflow-hidden border border-slate-800 group relative">
                       <img 
@@ -366,6 +384,33 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
                       </div>
                     </div>
                   ))}
+                </div>
+
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => handleFetchExternalPhoto(false)}
+                    disabled={isSearching}
+                    className="w-full py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold rounded-xl border border-blue-500/20 flex items-center justify-center gap-2 transition-all group disabled:opacity-50"
+                  >
+                    {isSearching ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Globe className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                    )}
+                    {isSearching ? 'Fetching Street View...' : 
+                      survey.external_photo_url ? 'Admin: Refresh Street View' : 'Admin: Fetch Street View Reference'}
+                  </button>
+
+                  {photoError && (
+                    <button 
+                      onClick={() => handleFetchExternalPhoto(true)}
+                      disabled={isSearching}
+                      className="w-full py-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl border border-amber-500/20 flex items-center justify-center gap-2 transition-all group disabled:opacity-50 animate-in fade-in slide-in-from-top-1"
+                    >
+                      <Search className="w-4 h-4" />
+                      Retry with AI Search Fallback
+                    </button>
+                  )}
                 </div>
               </section>
             </div>

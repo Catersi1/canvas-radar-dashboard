@@ -108,8 +108,9 @@ export default function Dashboard() {
     const surveysToFetch = surveysList.filter(s => !s.external_photo_url).slice(0, 5);
     for (const survey of surveysToFetch) {
       try {
+        const fullAddress = `${survey.properties?.address || ''}, ${survey.properties?.city || ''}, ${survey.properties?.state || ''} ${survey.properties?.zip || ''}`;
         const result = await findPropertyPhoto(
-          survey.properties?.address || '',
+          fullAddress,
           survey.properties?.lat,
           survey.properties?.lng
         );
