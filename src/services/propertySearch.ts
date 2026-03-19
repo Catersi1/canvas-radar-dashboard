@@ -1,14 +1,49 @@
 import { GoogleGenAI } from "@google/genai";
 
 export async function findPropertyPhoto(address: string, lat?: number, lng?: number) {
-  const apiKey = process.env.GEMINI_API_KEY || 
-                 (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-                 (import.meta as any).env?.GEMINI_API_KEY || 
-                 '';
+  const rawApiKey = process.env.GEMINI_API_KEY || 
+                   process.env.VITE_GEMINI_API_KEY ||
+                   (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                   (import.meta as any).env?.GEMINI_API_KEY || 
+                   '';
   
-  if (!apiKey || apiKey === 'undefined') {
-    console.error("CRITICAL: GEMINI_API_KEY is missing or undefined. Photo search will fail.");
-    return { imageUrl: '' };
+  const mapsApiKey = process.env.GOOGLE_MAPS_PLATFORM_KEY || 
+                    (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY || 
+                    '';
+
+  // Clean up the key in case it's the string "undefined" or "null"
+  const apiKey = (rawApiKey && rawApiKey !== 'undefined' && rawApiKey !== 'null' && rawApiKey.trim() !== '') ? rawApiKey.trim() : '';
+  const gmapsKey = (mapsApiKey && mapsApiKey !== 'undefined' && mapsApiKey !== 'null' && mapsApiKey.trim() !== '') ? mapsApiKey.trim() : '';
+  
+  // If we have a Google Maps key, we can use the Street View Static API directly
+  if (gmapsKey) {
+    console.log(`[Photo Search] Using Google Maps Street View Static API for: ${address}`);
+    const baseUrl = "https://maps.googleapis.com/maps/api/streetview";
+    const params = new URLSearchParams({
+      size: "1200x800",
+      location: address,
+      key: gmapsKey,
+      fov: "90",
+      heading: "0",
+      pitch: "0"
+    });
+    
+    // If we have lat/lng, use them for better accuracy
+    if (lat && lng) {
+      params.set("location", `${lat},${lng}`);
+    }
+
+    return {
+      imageUrl: `${baseUrl}?${params.toString()}`,
+      sourceUrl: `https://www.google.com/maps/search/${encodeURIComponent(address)}`,
+      description: "Google Street View image",
+      groundingChunks: []
+    };
+  }
+
+  if (!apiKey) {
+    console.error("CRITICAL: GEMINI_API_KEY is missing or invalid. Photo search will fail. Please ensure you have set GEMINI_API_KEY in your AI Studio Secrets.");
+    return { imageUrl: `https://picsum.photos/seed/${address.replace(/\s/g, '')}/1200/800` };
   }
 
   // Masked key for logging
@@ -55,7 +90,13 @@ export async function findPropertyPhoto(address: string, lat?: number, lng?: num
         });
       } catch (retryError: any) {
         console.error("[Photo Search] Retry call also failed:", retryError.message || retryError);
-        throw retryError;
+        let errorMsg = retryError.message || "API Call Failed";
+        if (errorMsg.includes("403") || errorMsg.includes("PERMISSION_DENIED")) {
+          errorMsg = "Gemini API Permission Denied. Please check if your API key is valid.";
+        } else if (errorMsg.includes("429")) {
+          errorMsg = "Gemini API Quota Exceeded. Please try again later.";
+        }
+        throw new Error(errorMsg);
       }
     }
 

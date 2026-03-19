@@ -34,6 +34,22 @@ export default function Dashboard() {
   const [isAutoFetching, setIsAutoFetching] = useState(false);
   const [isAutoEnriching, setIsAutoEnriching] = useState(false);
 
+  const hasApiKey = useMemo(() => {
+    const key = process.env.GEMINI_API_KEY || 
+                process.env.VITE_GEMINI_API_KEY ||
+                (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                (import.meta as any).env?.GEMINI_API_KEY || 
+                '';
+    return key && key !== 'undefined' && key !== 'null' && key.trim() !== '';
+  }, []);
+
+  const hasMapsKey = useMemo(() => {
+    const key = process.env.GOOGLE_MAPS_PLATFORM_KEY || 
+                (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY || 
+                '';
+    return key && key !== 'undefined' && key !== 'null' && key.trim() !== '';
+  }, []);
+
   const autoEnrichProperties = async (surveysList: Survey[]) => {
     if (isAutoEnriching) return;
     
@@ -317,6 +333,30 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {!hasApiKey && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3 mb-4">
+          <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-bold text-amber-500">Gemini API Key Missing</h3>
+            <p className="text-xs text-amber-200/70 mt-1 leading-relaxed">
+              Data enrichment and photo search are currently disabled. Please add your <code className="bg-amber-500/20 px-1 rounded text-amber-400">GEMINI_API_KEY</code> to the AI Studio Secrets (⚙️ Settings → Secrets) to enable these features.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!hasMapsKey && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3 mb-4">
+          <Globe className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-bold text-blue-500">Google Maps API Key Missing</h3>
+            <p className="text-xs text-blue-200/70 mt-1 leading-relaxed">
+              Street View pictures are currently using a fallback. Please add your <code className="bg-blue-500/20 px-1 rounded text-blue-400">GOOGLE_MAPS_PLATFORM_KEY</code> to the AI Studio Secrets to enable high-quality Street View images.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Executive Summary */}
       <section>
         <div className="flex items-center justify-between mb-6">

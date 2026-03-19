@@ -35,13 +35,17 @@ export async function enrichPropertyData(address: string): Promise<EnrichmentRes
     return { data: null, error: "Empty address provided" };
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || 
-                 (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-                 (import.meta as any).env?.GEMINI_API_KEY || 
-                 '';
+  const rawApiKey = process.env.GEMINI_API_KEY || 
+                   process.env.VITE_GEMINI_API_KEY ||
+                   (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                   (import.meta as any).env?.GEMINI_API_KEY || 
+                   '';
   
-  if (!apiKey || apiKey === 'undefined') {
-    const msg = "CRITICAL: GEMINI_API_KEY is missing or undefined. Enrichment will fail.";
+  // Clean up the key in case it's the string "undefined" or "null"
+  const apiKey = (rawApiKey && rawApiKey !== 'undefined' && rawApiKey !== 'null' && rawApiKey.trim() !== '') ? rawApiKey.trim() : '';
+  
+  if (!apiKey) {
+    const msg = "CRITICAL: GEMINI_API_KEY is missing or invalid. Enrichment will fail. Please ensure you have set GEMINI_API_KEY in your AI Studio Secrets.";
     console.error(msg);
     return { data: null, error: "API Key Missing" };
   }
@@ -200,7 +204,13 @@ export async function enrichPropertyData(address: string): Promise<EnrichmentRes
         });
       } catch (retryError: any) {
         console.error("[Enrichment] Retry call also failed:", retryError.message || retryError);
-        return { data: null, error: retryError.message || "API Call Failed" };
+        let errorMsg = retryError.message || "API Call Failed";
+        if (errorMsg.includes("403") || errorMsg.includes("PERMISSION_DENIED")) {
+          errorMsg = "Gemini API Permission Denied. Please check if your API key is valid and has access to the requested model and tools.";
+        } else if (errorMsg.includes("429")) {
+          errorMsg = "Gemini API Quota Exceeded. Please try again later.";
+        }
+        return { data: null, error: errorMsg };
       }
     }
 
