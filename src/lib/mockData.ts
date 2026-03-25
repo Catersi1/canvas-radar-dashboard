@@ -46,7 +46,7 @@ export const generateMockData = () => {
       surveyor_id: `user-${Math.floor(Math.random() * 10)}`,
       type: property.type,
       status: isRecent ? 'pending' : (Math.random() > 0.3 ? 'complete' : 'pending'),
-      earnings: Math.random() * 50 + 10,
+      earnings: type === 'commercial' ? 6 : 3,
       progress: Math.random() * 100,
       roof_condition: conditions[Math.floor(Math.random() * 3)],
       house_condition: conditions[Math.floor(Math.random() * 3)],

@@ -20,7 +20,7 @@ import {
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { generateMockData } from '../lib/mockData';
-import { Survey } from '../types/dashboard';
+import { Survey } from '../types';
 import SurveyDetail from '../components/SurveyDetail';
 import { findPropertyPhoto } from '../services/propertySearch';
 import { enrichPropertyData } from '../services/propertyEnrichment';
@@ -30,6 +30,8 @@ import { saveToCache } from '../lib/cache';
 export default function Surveys() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [safetyFilter, setSafetyFilter] = useState<string>('All');
+  const [qualityFilter, setQualityFilter] = useState<string>('All');
   const [surveys, setSurveys] = useState<Survey[]>(() => generateMockData().surveys);
   const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
   const [isAutoFetching, setIsAutoFetching] = useState(false);
@@ -245,6 +247,9 @@ export default function Surveys() {
       s.id === id ? { ...s, status: 'complete' as const, progress: 100 } : s
     ));
     
+    // Save to cache
+    saveToCache(id, { status: 'complete', progress: 100 });
+    
     // Update selected survey to reflect changes immediately
     if (selectedSurvey?.id === id) {
       setSelectedSurvey({ ...selectedSurvey, status: 'complete' as const, progress: 100 });
@@ -297,7 +302,17 @@ export default function Surveys() {
                          surveyor.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customer.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All' || s.status === statusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
+    
+    const matchesSafety = safetyFilter === 'All' || 
+                         (safetyFilter === 'Acknowledged' && s.safety_acknowledged) ||
+                         (safetyFilter === 'Missing' && !s.safety_acknowledged);
+    
+    const matchesQuality = qualityFilter === 'All' ||
+                          (qualityFilter === 'High' && (s.quality_score || 0) >= 90) ||
+                          (qualityFilter === 'Medium' && (s.quality_score || 0) >= 75 && (s.quality_score || 0) < 90) ||
+                          (qualityFilter === 'Low' && (s.quality_score || 0) < 75);
+
+    return matchesSearch && matchesStatus && matchesSafety && matchesQuality;
   });
 
   const getStatusConfig = (status: string) => {
@@ -347,7 +362,7 @@ export default function Surveys() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <input 
@@ -358,18 +373,39 @@ export default function Surveys() {
             className="w-full bg-card border border-card-border rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-accent/50 transition-all"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-text-muted" />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-text-muted" />
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-card border border-card-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-accent/50"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Review Required">Review Required</option>
+            </select>
+          </div>
           <select 
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={safetyFilter}
+            onChange={(e) => setSafetyFilter(e.target.value)}
             className="bg-card border border-card-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-accent/50"
           >
-            <option value="All">All Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Completed">Completed</option>
-            <option value="Review Required">Review Required</option>
+            <option value="All">Safety: All</option>
+            <option value="Acknowledged">Acknowledged</option>
+            <option value="Missing">Missing</option>
+          </select>
+          <select 
+            value={qualityFilter}
+            onChange={(e) => setQualityFilter(e.target.value)}
+            className="bg-card border border-card-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-accent/50"
+          >
+            <option value="All">Quality: All</option>
+            <option value="High">High (90%+)</option>
+            <option value="Medium">Medium (75-89%)</option>
+            <option value="Low">Low (&lt;75%)</option>
           </select>
         </div>
       </div>
@@ -380,10 +416,11 @@ export default function Surveys() {
           <thead>
             <tr className="border-b border-card-border bg-background/30">
               <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-text-muted">Property</th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-text-muted">Details</th>
+              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-text-muted">Surveyor</th>
+              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-text-muted">Quality</th>
+              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-text-muted">Safety</th>
               <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-text-muted">Status</th>
               <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-text-muted">Submitted</th>
-              <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-text-muted">Progress</th>
               <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-text-muted text-right">Actions</th>
             </tr>
           </thead>
@@ -403,20 +440,54 @@ export default function Surveys() {
                       </div>
                       <div>
                         <p className="font-semibold text-text-primary group-hover:text-accent transition-colors">{survey.properties?.address}</p>
-                        <p className="text-xs text-text-muted">{survey.id} • {survey.type}</p>
+                        <p className="text-xs text-text-muted">{survey.id.slice(0, 8)} • {survey.type}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm">
-                        <User className="w-3 h-3 text-accent" />
-                        <span>{survey.surveyor_id}</span>
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="w-3 h-3 text-accent" />
+                      <span>{survey.surveyorName || survey.surveyor_id}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {survey.quality_score ? (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-12 bg-background rounded-full overflow-hidden">
+                            <div 
+                              className={cn(
+                                "h-full rounded-full",
+                                survey.quality_score >= 90 ? "bg-emerald-500" :
+                                survey.quality_score >= 75 ? "bg-yellow-500" : "bg-red-500"
+                              )}
+                              style={{ width: `${survey.quality_score}%` }}
+                            />
+                          </div>
+                          <span className={cn(
+                            "text-xs font-bold",
+                            survey.quality_score >= 90 ? "text-emerald-400" :
+                            survey.quality_score >= 75 ? "text-yellow-400" : "text-red-400"
+                          )}>
+                            {survey.quality_score}%
+                          </span>
+                        </div>
+                        {survey.validation_flags && survey.validation_flags.length > 0 && (
+                          <span className="text-[9px] text-red-400/70 font-medium">
+                            {survey.validation_flags.length} flags detected
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Building className="w-3 h-3 text-text-muted" />
-                        <span className="text-text-muted">{survey.properties?.city}, {survey.properties?.state}</span>
-                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-600">N/A</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                      survey.safety_acknowledged ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"
+                    )}>
+                      {survey.safety_acknowledged ? 'OK' : 'MISSING'}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -424,35 +495,9 @@ export default function Surveys() {
                       <config.icon className="w-3 h-3" />
                       {survey.status === 'pending' ? 'Review Required' : survey.status}
                     </div>
-                    {survey.enrichment_status === 'failed' && (
-                      <div className="mt-1 flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1 text-[10px] text-red-400 font-medium">
-                          <AlertCircle className="w-2.5 h-2.5" />
-                          Enrichment Failed
-                        </div>
-                        {survey.enrichment_error && (
-                          <span className="text-[9px] text-red-400/60 truncate max-w-[120px] font-mono" title={survey.enrichment_error}>
-                            {survey.enrichment_error}
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-text-muted">
-                    {survey.submitted_at ? format(new Date(survey.submitted_at), 'MMM d, yyyy HH:mm') : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="w-24">
-                      <div className="flex justify-between text-[10px] mb-1">
-                        <span>{Math.round(survey.progress)}%</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-background rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-accent rounded-full" 
-                          style={{ width: `${survey.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
+                    {survey.submitted_at || survey.date ? format(new Date(survey.submitted_at || survey.date), 'MMM d, HH:mm') : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -476,15 +521,6 @@ export default function Surveys() {
                         className="p-1.5 hover:bg-background rounded-lg text-text-muted hover:text-accent transition-colors"
                       >
                         <Eye className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Handle delete
-                        }}
-                        className="p-1.5 hover:bg-background rounded-lg text-text-muted hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>

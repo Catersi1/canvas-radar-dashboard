@@ -15,6 +15,22 @@ export async function findPropertyPhoto(address: string, lat?: number, lng?: num
   const apiKey = (rawApiKey && rawApiKey !== 'undefined' && rawApiKey !== 'null' && rawApiKey.trim() !== '') ? rawApiKey.trim() : '';
   const gmapsKey = (mapsApiKey && mapsApiKey !== 'undefined' && mapsApiKey !== 'null' && mapsApiKey.trim() !== '') ? mapsApiKey.trim() : '';
   
+  // Check cache first
+  const cacheKey = `photo_${address.toLowerCase().trim()}`;
+  const cachedData = localStorage.getItem(cacheKey);
+  if (cachedData) {
+    try {
+      const parsed = JSON.parse(cachedData);
+      // Cache for 7 days
+      if (Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) {
+        console.log(`[Photo Search] Returning cached data for: ${address}`);
+        return parsed.data;
+      }
+    } catch (e) {
+      console.warn("[Photo Search] Failed to parse cached data", e);
+    }
+  }
+
   // If we have a Google Maps key, we can use the Street View Static API directly
   if (gmapsKey && !skipMaps) {
     console.log(`[Photo Search] Using Google Maps Street View Static API for: ${address}`);
@@ -35,12 +51,19 @@ export async function findPropertyPhoto(address: string, lat?: number, lng?: num
       params.set("location", `${lat},${lng}`);
     }
 
-    return {
+    const result = {
       imageUrl: `${baseUrl}?${params.toString()}`,
       sourceUrl: `https://www.google.com/maps/search/${encodeURIComponent(address)}`,
       description: "Google Street View image",
       groundingChunks: []
     };
+    
+    localStorage.setItem(cacheKey, JSON.stringify({
+      data: result,
+      timestamp: Date.now()
+    }));
+
+    return result;
   }
 
   if (!apiKey) {
@@ -121,19 +144,33 @@ export async function findPropertyPhoto(address: string, lat?: number, lng?: num
       }
     };
 
-    return {
+    const finalResult = {
       imageUrl: isValidUrl(result.imageUrl) ? result.imageUrl : `https://picsum.photos/seed/${address.replace(/\s/g, '')}/1200/800`,
       sourceUrl: isValidUrl(result.sourceUrl) ? result.sourceUrl : `https://www.google.com/maps/search/${encodeURIComponent(address)}`,
       description: result.description || "Property photo",
       groundingChunks: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
     };
+
+    localStorage.setItem(cacheKey, JSON.stringify({
+      data: finalResult,
+      timestamp: Date.now()
+    }));
+
+    return finalResult;
   } catch (error) {
     console.error("Error finding property photo:", error);
     // Fallback to a placeholder
-    return {
+    const fallbackResult = {
       imageUrl: `https://picsum.photos/seed/${address.replace(/\s/g, '')}/1200/800`,
       sourceUrl: `https://www.google.com/maps/search/${encodeURIComponent(address)}`,
       groundingChunks: []
     };
+
+    localStorage.setItem(cacheKey, JSON.stringify({
+      data: fallbackResult,
+      timestamp: Date.now()
+    }));
+
+    return fallbackResult;
   }
 }

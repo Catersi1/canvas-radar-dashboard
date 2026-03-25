@@ -15,13 +15,13 @@ import { cn } from '../lib/utils';
 
 interface AuthPageProps {
   type: 'login' | 'signup';
-  role: 'surveyor' | 'customer';
+  role: 'surveyor' | 'customer' | 'admin';
   onToggleType: () => void;
-  onToggleRole: () => void;
+  onChangeRole: (role: 'surveyor' | 'customer' | 'admin') => void;
   onAuthSuccess: (user: any) => void;
 }
 
-export default function AuthPage({ type, role, onToggleType, onToggleRole, onAuthSuccess }: AuthPageProps) {
+export default function AuthPage({ type, role, onToggleType, onChangeRole, onAuthSuccess }: AuthPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -60,25 +60,68 @@ export default function AuthPage({ type, role, onToggleType, onToggleRole, onAut
         </div>
 
         <div className="glass-card p-8">
+          {/* Quick Login for Demo */}
+          <div className="mb-8 p-4 bg-accent/5 border border-accent/20 rounded-xl">
+            <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3 text-center">Quick Access (Demo Mode)</p>
+            <div className="grid grid-cols-3 gap-2">
+              <button 
+                onClick={() => {
+                  setEmail('admin@canvasradar.com');
+                  setPassword('password');
+                }}
+                className="py-2 px-1 text-[9px] font-bold uppercase tracking-tighter bg-background border border-card-border rounded-lg hover:border-accent transition-colors"
+              >
+                Admin
+              </button>
+              <button 
+                onClick={() => {
+                  setEmail('customer@greystar.com');
+                  setPassword('password');
+                }}
+                className="py-2 px-1 text-[9px] font-bold uppercase tracking-tighter bg-background border border-card-border rounded-lg hover:border-blue-500 transition-colors"
+              >
+                Customer
+              </button>
+              <button 
+                onClick={() => {
+                  setEmail('alex@canvasradar.com');
+                  setPassword('password');
+                }}
+                className="py-2 px-1 text-[9px] font-bold uppercase tracking-tighter bg-background border border-card-border rounded-lg hover:border-emerald-500 transition-colors"
+              >
+                Surveyor
+              </button>
+            </div>
+          </div>
+
           {/* Role Switcher */}
           <div className="flex p-1 bg-background rounded-xl border border-card-border mb-8">
             <button 
-              onClick={() => role !== 'surveyor' && onToggleRole()}
+              onClick={() => onChangeRole('surveyor')}
               className={cn(
-                "flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all",
+                "flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all",
                 role === 'surveyor' ? "bg-accent text-background" : "text-text-muted hover:text-text-primary"
               )}
             >
               Surveyor
             </button>
             <button 
-              onClick={() => role !== 'customer' && onToggleRole()}
+              onClick={() => onChangeRole('customer')}
               className={cn(
-                "flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all",
+                "flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all",
                 role === 'customer' ? "bg-accent text-background" : "text-text-muted hover:text-text-primary"
               )}
             >
               Customer
+            </button>
+            <button 
+              onClick={() => onChangeRole('admin')}
+              className={cn(
+                "flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all",
+                role === 'admin' ? "bg-accent text-background" : "text-text-muted hover:text-text-primary"
+              )}
+            >
+              Admin
             </button>
           </div>
 

@@ -5,6 +5,7 @@ import {
   CheckCircle2, 
   Users, 
   Camera, 
+  Smartphone,
   RefreshCw, 
   Download, 
   Zap, 
@@ -97,6 +98,56 @@ export default function HomePage({ onNavigate }: HomeProps) {
             <p className="mt-8 text-sm text-text-muted font-medium uppercase tracking-[0.2em]">
               Solar • Roofing • Insurance • Real Estate • Investors
             </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Portal Access Quick Links */}
+      <section className="container mx-auto px-6 -mt-16 relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div 
+            whileHover={{ y: -5 }}
+            className="glass-card p-8 border-accent/20 bg-accent/5 flex flex-col items-center text-center group cursor-pointer"
+            onClick={() => onNavigate('login-admin')}
+          >
+            <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center text-background mb-4 group-hover:scale-110 transition-transform">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Admin Portal</h3>
+            <p className="text-xs text-text-muted mb-6">Platform management, surveyor oversight, and billing controls.</p>
+            <span className="text-accent font-bold text-sm flex items-center gap-2 group-hover:gap-3 transition-all">
+              Admin Login <ChevronRight className="w-4 h-4" />
+            </span>
+          </motion.div>
+
+          <motion.div 
+            whileHover={{ y: -5 }}
+            className="glass-card p-8 border-blue-500/20 bg-blue-500/5 flex flex-col items-center text-center group cursor-pointer"
+            onClick={() => onNavigate('login-customer')}
+          >
+            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-background mb-4 group-hover:scale-110 transition-transform">
+              <Users className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Customer Portal</h3>
+            <p className="text-xs text-text-muted mb-6">Access your property portfolio, request surveys, and view data.</p>
+            <span className="text-blue-400 font-bold text-sm flex items-center gap-2 group-hover:gap-3 transition-all">
+              Customer Login <ChevronRight className="w-4 h-4" />
+            </span>
+          </motion.div>
+
+          <motion.div 
+            whileHover={{ y: -5 }}
+            className="glass-card p-8 border-emerald-500/20 bg-emerald-500/5 flex flex-col items-center text-center group cursor-pointer"
+            onClick={() => onNavigate('login-surveyor')}
+          >
+            <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center text-background mb-4 group-hover:scale-110 transition-transform">
+              <Smartphone className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Surveyor Portal</h3>
+            <p className="text-xs text-text-muted mb-6">Manage assignments, track earnings, and submit field data.</p>
+            <span className="text-emerald-400 font-bold text-sm flex items-center gap-2 group-hover:gap-3 transition-all">
+              Surveyor Login <ChevronRight className="w-4 h-4" />
+            </span>
           </motion.div>
         </div>
       </section>

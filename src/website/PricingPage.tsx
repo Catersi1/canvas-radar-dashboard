@@ -90,7 +90,8 @@ export default function PricingPage() {
             <p className="text-text-muted">Join our network and start earning today.</p>
             <ul className="space-y-2">
               <li className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="w-4 h-4 text-accent" /> Free to join</li>
-              <li className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="w-4 h-4 text-accent" /> $0.25 per survey</li>
+              <li className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="w-4 h-4 text-accent" /> $3.00 per residential survey</li>
+              <li className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="w-4 h-4 text-accent" /> $6.00 per commercial survey</li>
               <li className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="w-4 h-4 text-accent" /> Weekly payouts</li>
             </ul>
           </div>

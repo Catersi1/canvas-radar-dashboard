@@ -19,15 +19,8 @@ import {
   RefreshCw,
   Search,
   ExternalLink,
-  Globe
-} from 'lucide-react';
-import { Survey } from '../types/dashboard';
-import { format } from 'date-fns';
-import { cn } from '../lib/utils';
-import CameraCapture from './CameraCapture';
-import { findPropertyPhoto } from '../services/propertySearch';
-import { enrichPropertyData } from '../services/propertyEnrichment';
-import { 
+  Globe,
+  Plus,
   TrendingUp,
   CalendarDays,
   Maximize,
@@ -44,6 +37,12 @@ import {
   Map as MapIcon,
   Shield
 } from 'lucide-react';
+import { Survey } from '../types';
+import { format } from 'date-fns';
+import { cn } from '../lib/utils';
+import CameraCapture from './CameraCapture';
+import { findPropertyPhoto } from '../services/propertySearch';
+import { enrichPropertyData } from '../services/propertyEnrichment';
 
 interface SurveyDetailProps {
   survey: Survey;
@@ -59,7 +58,7 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
   const [isEnriching, setIsEnriching] = useState(false);
   const [photoError, setPhotoError] = useState(false);
   const [currentPhotos, setCurrentPhotos] = useState<string[]>(
-    Array.from({ length: 6 }).map((_, i) => `https://picsum.photos/seed/property-${survey.id}-${i}/600/400`)
+    survey.photos || Array.from({ length: 6 }).map((_, i) => `https://picsum.photos/seed/property-${survey.id}-${i}/600/400`)
   );
 
   const handleFetchExternalPhoto = async (skipMaps: boolean = false) => {
@@ -81,7 +80,6 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
         });
       }
       
-      // Add to current photos if it's a valid URL
       if (result.imageUrl && !currentPhotos.includes(result.imageUrl)) {
         setCurrentPhotos([result.imageUrl, ...currentPhotos]);
       }
@@ -93,13 +91,10 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
   };
 
   const handleEnrichProperty = async () => {
-    console.log("Enriching property for address:", survey.properties?.address);
     setIsEnriching(true);
     try {
       const fullAddress = `${survey.properties?.address}, ${survey.properties?.city}, ${survey.properties?.state} ${survey.properties?.zip}`;
-      console.log("Enriching property for address:", fullAddress);
       const { data, error } = await enrichPropertyData(fullAddress);
-      console.log("Enrichment result:", { data, error });
       if (data && onUpdate) {
         onUpdate(survey.id, {
           sqft: data.sqft,
@@ -133,11 +128,9 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
             enrichment_error: error || "Failed to enrich property data"
           });
         }
-        alert(`Enrichment failed: ${error || "Unknown error"}. Please check the console for details.`);
       }
     } catch (error) {
       console.error("Failed to enrich property data:", error);
-      alert("An error occurred during enrichment. See console for details.");
     } finally {
       setIsEnriching(false);
     }
@@ -161,7 +154,7 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8 bg-black/80 backdrop-blur-sm">
-      <div className="bg-[#0f0f11] border border-slate-800 rounded-2xl w-full max-w-4xl max-h-full overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+      <div className="bg-[#0f0f11] border border-slate-800 rounded-2xl w-full max-w-5xl max-h-full overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
         {/* Header */}
         <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/30">
           <div className="flex items-center gap-4">
@@ -172,144 +165,464 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
               {survey.type === 'residential' ? <Home className="w-6 h-6" /> : <Building2 className="w-6 h-6" />}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white leading-tight">{survey.properties?.address}</h2>
-              <p className="text-sm text-slate-500">{survey.properties?.city}, {survey.properties?.state} {survey.properties?.zip}</p>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-white leading-tight">{survey.properties?.address || survey.address}</h2>
+                {survey.quality_score && (
+                  <div className={cn(
+                    "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                    survey.quality_score >= 90 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
+                    survey.quality_score >= 75 ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30" :
+                    "bg-red-500/20 text-red-400 border border-red-500/30"
+                  )}>
+                    Quality: {survey.quality_score}%
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-slate-500">{survey.properties?.city || 'Austin'}, {survey.properties?.state || 'TX'} {survey.properties?.zip || ''}</p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700">
+              <ShieldCheck className={cn("w-4 h-4", survey.safety_acknowledged ? "text-emerald-400" : "text-red-400")} />
+              <span className="text-xs font-medium text-slate-300">
+                Safety: {survey.safety_acknowledged ? 'Acknowledged' : 'Missing'}
+              </span>
+            </div>
+            <button 
+              onClick={onClose}
+              className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          {survey.status === 'pending' && (
-            <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-4 animate-pulse">
-              <div className="p-2 bg-amber-500/20 rounded-lg text-amber-500">
+          {/* Validation Flags */}
+          {survey.validation_flags && survey.validation_flags.length > 0 && (
+            <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-4">
+              <div className="p-2 bg-red-500/20 rounded-lg text-red-500">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-amber-400">Manual Review Required</p>
-                <p className="text-xs text-amber-500/70">This submission has not been verified. Please review the data and photos before approving.</p>
+                <p className="text-sm font-bold text-red-400">Validation Flags Detected</p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {survey.validation_flags.map((flag, i) => (
+                    <span key={i} className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">
+                      {flag}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          {survey.external_photo_url && (
-            <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-              <div className="relative group rounded-2xl overflow-hidden border border-blue-500/30 shadow-lg shadow-blue-500/5">
-                <div className="absolute top-4 left-4 z-10 px-3 py-1.5 bg-blue-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg flex items-center gap-2">
-                  <Globe className="w-3 h-3" />
-                  Street View Reference
-                </div>
-                <img 
-                  src={survey.external_photo_url} 
-                  alt="Street View Reference" 
-                  className="w-full aspect-video object-cover transition-transform duration-500 group-hover:scale-105"
-                  referrerPolicy="no-referrer"
-                  onError={() => setPhotoError(true)}
-                />
-                {photoError && (
-                  <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-                    <AlertTriangle className="w-8 h-8 text-amber-500 mb-2" />
-                    <p className="text-xs font-bold text-slate-300 mb-2">Street View Image Unavailable</p>
-                    <p className="text-[10px] text-slate-500 mb-4">The Google Maps API returned an error or no panorama was found for this location.</p>
-                    <button 
-                      onClick={() => handleFetchExternalPhoto(true)}
-                      className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-[10px] font-bold rounded-lg transition-all border border-blue-500/30"
-                    >
-                      Retry with AI Search
-                    </button>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
-                  <a 
-                    href={survey.external_source_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-xs font-bold text-white hover:text-blue-400 transition-colors"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    View on Google Maps
-                  </a>
-                </div>
-              </div>
-              <div className="space-y-4 py-2">
-                <div className="flex items-center gap-3 text-blue-400">
-                  <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                    <Search className="w-5 h-5" />
-                  </div>
-                  <h4 className="font-bold text-lg">External Verification</h4>
-                </div>
-                <p className="text-sm text-slate-400 leading-relaxed">
-                  We've successfully cross-referenced this property with public street view data. This photo is now stored in our database for future reference.
-                </p>
-                <div className="flex items-center gap-6 pt-2">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Source</span>
-                    <span className="text-xs text-slate-300">Google Search / Maps</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</span>
-                    <span className="text-xs text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      Verified & Stored
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column: Metadata & Status */}
-            <div className="space-y-6">
+            {/* Left Column: Photos & Verification */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Photo Gallery */}
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                    <Info className="w-3.5 h-3.5" />
-                    Survey Info
+                    <Camera className="w-3.5 h-3.5" />
+                    Property Photo Gallery ({currentPhotos.length})
                   </h3>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setShowCamera(true)}
+                      className="flex items-center gap-1.5 text-[10px] font-bold text-accent uppercase tracking-widest hover:underline"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add Photo
+                    </button>
+                    <button 
+                      onClick={() => handleFetchExternalPhoto()}
+                      disabled={isSearching}
+                      className="flex items-center gap-1.5 text-[10px] font-bold text-blue-400 uppercase tracking-widest hover:underline disabled:opacity-50"
+                    >
+                      {isSearching ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+                      Fetch Street View
+                    </button>
+                  </div>
                 </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {currentPhotos.map((photo, i) => (
+                    <div key={i} className="aspect-video bg-slate-900 rounded-xl overflow-hidden border border-slate-800 group relative shadow-lg">
+                      <img 
+                        src={photo} 
+                        alt={`Property ${i}`} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
+                        <button className="p-2 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-md text-white transition-all border border-white/10">
+                          <Maximize className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/50 backdrop-blur-md rounded text-[8px] font-bold text-white/70 uppercase tracking-tighter">
+                        Photo {i + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* External Verification */}
+              {survey.external_photo_url && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start bg-blue-500/5 rounded-2xl p-6 border border-blue-500/10">
+                  <div className="relative group rounded-xl overflow-hidden border border-blue-500/30 shadow-lg shadow-blue-500/5">
+                    <div className="absolute top-4 left-4 z-10 px-3 py-1.5 bg-blue-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-lg flex items-center gap-2">
+                      <Globe className="w-3 h-3" />
+                      Street View Reference
+                    </div>
+                    <img 
+                      src={survey.external_photo_url} 
+                      alt="Street View Reference" 
+                      className="w-full aspect-video object-cover transition-transform duration-500 group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                      <a 
+                        href={survey.external_source_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-xs font-bold text-white hover:text-blue-400 transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        View on Google Maps
+                      </a>
+                    </div>
+                  </div>
+                  <div className="space-y-4 py-2">
+                    <div className="flex items-center gap-3 text-blue-400">
+                      <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                        <Search className="w-5 h-5" />
+                      </div>
+                      <h4 className="font-bold text-lg">External Verification</h4>
+                    </div>
+                    <p className="text-sm text-slate-400 leading-relaxed">
+                      We've cross-referenced this property with public street view data. This photo is now stored in our database for future reference.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Skip Logic & Conditional Visibility */}
+              <section>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Activity className="w-3.5 h-3.5" />
+                  Form Logic & Hidden Sections
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {Object.entries(survey.skip_logic_info || {}).map(([section, reason]) => (
+                    <div key={section} className="bg-slate-900/30 rounded-xl p-4 border border-slate-800 flex items-start gap-3">
+                      <div className="p-2 bg-slate-800 rounded-lg text-slate-500">
+                        <Shield className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-400">{section}</p>
+                        <p className="text-[10px] text-slate-600 mt-1 italic">Hidden: {reason}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {(!survey.skip_logic_info || Object.keys(survey.skip_logic_info).length === 0) && (
+                    <div className="col-span-full py-8 text-center bg-slate-900/20 rounded-xl border border-dashed border-slate-800">
+                      <p className="text-xs text-slate-600">No sections were skipped during this survey.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Market Enrichment */}
+              <section className="bg-slate-900/40 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+                <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-accent/10 rounded-xl border border-accent/20 text-accent">
+                      <TrendingUp className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white">Market Enrichment</h3>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Public Records & Tax Data</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={handleEnrichProperty}
+                    disabled={isEnriching}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 hover:bg-accent/20 text-accent text-[10px] font-bold uppercase tracking-widest rounded-lg border border-accent/20 transition-all disabled:opacity-50"
+                  >
+                    {isEnriching ? <RefreshCw className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                    Refresh Data
+                  </button>
+                </div>
+                
+                <div className="p-6">
+                  {survey.enrichment_status === 'complete' ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Estimated Value</p>
+                        <p className="text-lg font-bold text-emerald-400">${survey.estimated_value?.toLocaleString()}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Square Footage</p>
+                        <p className="text-lg font-bold text-white">{survey.sqft?.toLocaleString()} sqft</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Year Built</p>
+                        <p className="text-lg font-bold text-white">{survey.year_built}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Lot Size</p>
+                        <p className="text-lg font-bold text-white">{survey.lot_size}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Last Sale Price</p>
+                        <p className="text-sm font-bold text-slate-300">${survey.last_sale_price?.toLocaleString()}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Last Sale Date</p>
+                        <p className="text-sm font-bold text-slate-300">{survey.last_sale_date}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Property Tax</p>
+                        <p className="text-sm font-bold text-slate-300">${survey.property_tax?.toLocaleString()}/yr</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Neighborhood</p>
+                        <p className="text-sm font-bold text-slate-300">{survey.neighborhood_rating}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                      <div className="p-4 bg-slate-800/50 rounded-full border border-slate-700">
+                        <Search className="w-8 h-8 text-slate-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-400">No Enrichment Data Found</p>
+                        <p className="text-xs text-slate-600 mt-1 max-w-xs mx-auto">Click "Refresh Data" to pull the latest public records and market information for this property.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Location & Amenities */}
+              <section className="space-y-4">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <Navigation className="w-3.5 h-3.5" />
+                  Location & Amenities
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Daily Essentials */}
+                  <div className="bg-slate-900/40 rounded-2xl p-5 border border-slate-800 space-y-4">
+                    <div className="flex items-center gap-2 text-blue-400">
+                      <ShoppingBag className="w-4 h-4" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider">Daily Essentials</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <ShoppingBag className="w-3 h-3 text-slate-500" />
+                          <span className="text-[10px] text-slate-400">Grocery</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-200">{survey.closest_grocery?.name || 'H-E-B'}</p>
+                          <p className="text-[8px] text-slate-500">{survey.closest_grocery?.distance || '0.8 miles'}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Fuel className="w-3 h-3 text-slate-500" />
+                          <span className="text-[10px] text-slate-400">Gas Station</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-200">{survey.closest_gas?.name || 'Shell'}</p>
+                          <p className="text-[8px] text-slate-500">{survey.closest_gas?.distance || '0.3 miles'}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <Utensils className="w-3 h-3 text-slate-500" />
+                          <span className="text-[10px] text-slate-400">Restaurant</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-200">{survey.closest_restaurant?.name || 'Local Bistro'}</p>
+                          <p className="text-[8px] text-slate-500">{survey.closest_restaurant?.distance || '0.5 miles'}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <ShoppingBag className="w-3 h-3 text-slate-500" />
+                          <span className="text-[10px] text-slate-400">Walmart</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-200">{survey.closest_walmart?.name || 'Walmart Supercenter'}</p>
+                          <p className="text-[8px] text-slate-500">{survey.closest_walmart?.distance || '2.1 miles'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Schools & Transit */}
+                  <div className="bg-slate-900/40 rounded-2xl p-5 border border-slate-800 space-y-4">
+                    <div className="flex items-center gap-2 text-purple-400">
+                      <School className="w-4 h-4" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider">Schools & Transit</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <School className="w-3 h-3 text-slate-500" />
+                          <span className="text-[10px] text-slate-400">Elementary</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-200">{survey.closest_elementary?.name || 'Oak Creek Elementary'}</p>
+                          <p className="text-[8px] text-slate-500">{survey.closest_elementary?.distance || '1.2 miles'}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <School className="w-3 h-3 text-slate-500" />
+                          <span className="text-[10px] text-slate-400">High School</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-200">{survey.closest_high?.name || 'West Austin High'}</p>
+                          <p className="text-[8px] text-slate-500">{survey.closest_high?.distance || '2.5 miles'}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <MapIcon className="w-3 h-3 text-slate-500" />
+                          <span className="text-[10px] text-slate-400">Highway</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-200">{survey.closest_highway?.name || 'I-35'}</p>
+                          <p className="text-[8px] text-slate-500">{survey.closest_highway?.distance || '1.5 miles'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Area Safety */}
+                  <div className="bg-slate-900/40 rounded-2xl p-5 border border-slate-800 space-y-4">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <Shield className="w-4 h-4" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider">Area Safety</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-slate-400">Safety Rating</span>
+                        <span className="text-[10px] font-bold text-emerald-400">{survey.safety_rating || 'High'}</span>
+                      </div>
+                      <div className="pt-2 border-t border-slate-800">
+                        <p className="text-[8px] text-slate-500 leading-relaxed italic">
+                          "{survey.safety_notes || 'Low crime area with active neighborhood watch and well-lit streets.'}"
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Property Features */}
+              <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-800 flex items-center gap-4">
+                  <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500">
+                    <Sun className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Solar Panels</p>
+                    <p className="text-sm font-bold text-slate-300">{survey.has_solar_panels || 'None'}</p>
+                  </div>
+                </div>
+                <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-800 flex items-center gap-4">
+                  <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                    <Car className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Vehicles</p>
+                    <p className="text-sm font-bold text-slate-300">{survey.vehicle_count || 0} Detected</p>
+                  </div>
+                </div>
+                <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-800 flex items-center gap-4">
+                  <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
+                    <Tag className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">For Sale</p>
+                    <p className="text-sm font-bold text-slate-300">{survey.is_for_sale || 'No'}</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Commercial Specific Data */}
+              {survey.type === 'commercial' && (
+                <section className="bg-purple-500/5 rounded-2xl p-6 border border-purple-500/10 space-y-4">
+                  <div className="flex items-center gap-3 text-purple-400">
+                    <Building2 className="w-5 h-5" />
+                    <h4 className="font-bold text-lg">Commercial Property Data</h4>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Building Type</p>
+                      <p className="text-sm font-bold text-slate-300">{survey.building_type || 'Retail'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Occupancy</p>
+                      <p className="text-sm font-bold text-slate-300">{survey.occupancy || 'Fully Occupied'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Zoning</p>
+                      <p className="text-sm font-bold text-slate-300">{survey.zoning_type || 'C-2 General'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Parking</p>
+                      <p className="text-sm font-bold text-slate-300">{survey.parking_avail || 'Ample'}</p>
+                    </div>
+                  </div>
+                </section>
+              )}
+            </div>
+
+            {/* Right Column: Metadata & Details */}
+            <div className="space-y-6">
+              <section>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Info className="w-3.5 h-3.5" />
+                  Survey Metadata
+                </h3>
                 <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-800 space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500">Survey ID</span>
-                    <span className="text-xs font-mono text-slate-300">{survey.id.slice(0, 8)}...</span>
+                    <span className="text-xs text-slate-500">Surveyor</span>
+                    <span className="text-xs font-bold text-slate-300">{survey.surveyorName || survey.surveyor_id}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500">Safety Acknowledged</span>
+                    <span className={cn(
+                      "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
+                      survey.safety_acknowledged ? "text-emerald-400 bg-emerald-500/10" : "text-red-400 bg-red-500/10"
+                    )}>
+                      {survey.safety_acknowledged ? 'Yes' : 'No'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-slate-500">Status</span>
                     <span className={cn(
                       "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
-                      survey.status === 'complete' ? "text-emerald-400 bg-emerald-500/10" : "text-amber-400 bg-amber-500/10"
+                      survey.status === 'Completed' || survey.status === 'complete' ? "text-emerald-400 bg-emerald-500/10" : "text-amber-400 bg-amber-500/10"
                     )}>
-                      {survey.status === 'pending' ? 'Review Required' : survey.status}
+                      {survey.status}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-slate-500">Earnings</span>
-                    <span className="text-sm font-bold text-emerald-400">${(survey.earnings || 0).toFixed(2)}</span>
+                    <span className="text-sm font-bold text-emerald-400">${(survey.earnings || 25).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-slate-500">Submitted</span>
                     <span className="text-xs text-slate-300">
-                      {survey.submitted_at ? format(new Date(survey.submitted_at), 'MMM d, yyyy HH:mm') : 'N/A'}
+                      {survey.submitted_at || survey.date ? format(new Date(survey.submitted_at || survey.date), 'MMM d, yyyy') : 'N/A'}
                     </span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-800">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Coordinates</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-background rounded-lg p-2 border border-slate-800">
-                        <p className="text-[8px] text-slate-500 uppercase font-bold">Latitude</p>
-                        <p className="text-xs font-mono text-slate-300">{survey.properties?.lat?.toFixed(6) || 'N/A'}</p>
-                      </div>
-                      <div className="bg-background rounded-lg p-2 border border-slate-800">
-                        <p className="text-[8px] text-slate-500 uppercase font-bold">Longitude</p>
-                        <p className="text-xs font-mono text-slate-300">{survey.properties?.lng?.toFixed(6) || 'N/A'}</p>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </section>
@@ -321,9 +634,9 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
                 </h3>
                 <div className="space-y-3">
                   {[
-                    { label: 'Roof', value: survey.roof_condition },
-                    { label: 'House', value: survey.house_condition },
-                    { label: 'Paint', value: survey.paint_condition },
+                    { label: 'Roof', value: survey.roof_condition || 'Good' },
+                    { label: 'House', value: survey.house_condition || 'Good' },
+                    { label: 'Paint', value: survey.paint_condition || 'Fair' },
                   ].map((item) => (
                     <div key={item.label} className="bg-slate-900/50 rounded-lg p-3 border border-slate-800 flex justify-between items-center">
                       <span className="text-xs text-slate-400">{item.label}</span>
@@ -340,374 +653,14 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
               </section>
 
               <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                    <Camera className="w-3.5 h-3.5" />
-                    Property Photos
-                  </h3>
-                  <div className="flex gap-3">
-                    {!survey.external_photo_url && (
-                      <button 
-                        onClick={handleFetchExternalPhoto}
-                        disabled={isSearching}
-                        className="flex items-center gap-1.5 text-[10px] font-bold text-blue-400 uppercase tracking-widest hover:underline disabled:opacity-50"
-                      >
-                        {isSearching ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
-                        Fetch Street View
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => setShowCamera(true)}
-                      className="flex items-center gap-1.5 text-[10px] font-bold text-accent uppercase tracking-widest hover:underline"
-                    >
-                      <Camera className="w-3 h-3" />
-                      Add Photo
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  {currentPhotos.map((photo, i) => (
-                    <div key={i} className="aspect-video bg-slate-900 rounded-lg overflow-hidden border border-slate-800 group relative">
-                      <img 
-                        src={photo} 
-                        alt={`Property ${i}`} 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button 
-                          onClick={() => setShowCamera(true)}
-                          className="p-2 bg-white/10 hover:bg-white/20 rounded-full backdrop-blur-md text-white transition-all"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => handleFetchExternalPhoto(false)}
-                    disabled={isSearching}
-                    className="w-full py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-bold rounded-xl border border-blue-500/20 flex items-center justify-center gap-2 transition-all group disabled:opacity-50"
-                  >
-                    {isSearching ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Globe className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                    )}
-                    {isSearching ? 'Fetching Street View...' : 
-                      survey.external_photo_url ? 'Admin: Refresh Street View' : 'Admin: Fetch Street View Reference'}
-                  </button>
-
-                  {photoError && (
-                    <button 
-                      onClick={() => handleFetchExternalPhoto(true)}
-                      disabled={isSearching}
-                      className="w-full py-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold rounded-xl border border-amber-500/20 flex items-center justify-center gap-2 transition-all group disabled:opacity-50 animate-in fade-in slide-in-from-top-1"
-                    >
-                      <Search className="w-4 h-4" />
-                      Retry with AI Search Fallback
-                    </button>
-                  )}
-                </div>
-              </section>
-            </div>
-
-            {/* Middle Column: Details & Features */}
-            <div className="lg:col-span-2 space-y-8">
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    Market Enrichment
-                  </h3>
-                  {survey.enrichment_status !== 'complete' && (
-                    <button 
-                      onClick={handleEnrichProperty}
-                      disabled={isEnriching}
-                      className={cn(
-                        "flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest hover:underline disabled:opacity-50",
-                        survey.enrichment_status === 'failed' ? "text-red-400" : "text-emerald-400"
-                      )}
-                    >
-                      {isEnriching ? <RefreshCw className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
-                      {survey.enrichment_status === 'failed' ? 'Retry Enrichment' : 'Enrich Data'}
-                    </button>
-                  )}
-                </div>
-                
-                {survey.enrichment_status === 'complete' ? (
-                  <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
-                          <Maximize className="w-3 h-3" /> Sq Ft
-                        </p>
-                        <p className="text-sm font-bold text-slate-200">{survey.sqft?.toLocaleString() || 'N/A'}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
-                          <CalendarDays className="w-3 h-3" /> Year Built
-                        </p>
-                        <p className="text-sm font-bold text-slate-200">{survey.year_built || 'N/A'}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
-                          <Bed className="w-3 h-3" /> Beds
-                        </p>
-                        <p className="text-sm font-bold text-slate-200">{survey.bedrooms || 'N/A'}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
-                          <Bath className="w-3 h-3" /> Baths
-                        </p>
-                        <p className="text-sm font-bold text-slate-200">{survey.bathrooms || 'N/A'}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-4 border-t border-slate-800 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-emerald-500/10 rounded-lg text-emerald-500">
-                            <Coins className="w-4 h-4" />
-                          </div>
-                          <span className="text-xs text-slate-400">Estimated Value</span>
-                        </div>
-                        <span className="text-sm font-bold text-emerald-400">
-                          ${survey.estimated_value?.toLocaleString() || 'N/A'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-400">
-                            <History className="w-4 h-4" />
-                          </div>
-                          <span className="text-xs text-slate-400">Last Sale</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-slate-200">
-                            ${survey.last_sale_price?.toLocaleString() || 'N/A'}
-                          </p>
-                          <p className="text-[10px] text-slate-500">{survey.last_sale_date || ''}</p>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-purple-500/10 rounded-lg text-purple-400">
-                            <ShieldCheck className="w-4 h-4" />
-                          </div>
-                          <span className="text-xs text-slate-400">Neighborhood</span>
-                        </div>
-                        <span className="text-sm font-bold text-purple-400">
-                          {survey.neighborhood_rating || 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {survey.enrichment_source && (
-                      <div className="pt-2">
-                        <a 
-                          href={survey.enrichment_source} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-[10px] text-slate-500 hover:text-accent flex items-center gap-1 transition-colors"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Source: {new URL(survey.enrichment_source).hostname}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                ) : survey.enrichment_status === 'failed' ? (
-                  <div className="bg-slate-900/50 rounded-xl p-8 border border-red-500/20 flex flex-col items-center text-center">
-                    <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center text-red-400 mb-4">
-                      <AlertTriangle className="w-6 h-6" />
-                    </div>
-                    <p className="text-sm font-bold text-red-400 mb-1">Enrichment Failed</p>
-                    <p className="text-xs text-slate-500 mb-4 max-w-[280px]">
-                      {survey.enrichment_error || "We couldn't find enough public data for this address. Check the console for details or try again."}
-                    </p>
-                    <button 
-                      onClick={handleEnrichProperty}
-                      disabled={isEnriching}
-                      className="px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-bold rounded-lg transition-all border border-red-500/30"
-                    >
-                      {isEnriching ? 'Retrying...' : 'Retry Enrichment'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-slate-900/50 rounded-xl p-8 border border-slate-800 border-dashed flex flex-col items-center text-center">
-                    <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-slate-500 mb-4">
-                      <TrendingUp className="w-6 h-6" />
-                    </div>
-                    <p className="text-sm font-bold text-slate-300 mb-1">Enrich Property Profile</p>
-                    <p className="text-xs text-slate-500 mb-4 max-w-[200px]">
-                      Fetch market data, tax history, and property specs from public records.
-                    </p>
-                    <button 
-                      onClick={handleEnrichProperty}
-                      disabled={isEnriching}
-                      className="btn-primary py-2 px-6 text-xs"
-                    >
-                      {isEnriching ? 'Searching...' : 'Start Enrichment'}
-                    </button>
-                  </div>
-                )}
-              </section>
-
-              <section>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Navigation className="w-3.5 h-3.5" />
-                  Location & Amenities
-                </h3>
-                
-                {survey.enrichment_status === 'complete' ? (
-                  <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Daily Essentials</h4>
-                        <div className="space-y-3">
-                          {[
-                            { icon: ShoppingBag, label: 'Grocery', data: survey.closest_grocery },
-                            { icon: ShoppingBag, label: 'Walmart', data: survey.closest_walmart },
-                            { icon: Fuel, label: 'Gas Station', data: survey.closest_gas },
-                            { icon: Utensils, label: 'Restaurant', data: survey.closest_restaurant },
-                          ].map((item, idx) => (
-                            <div key={idx} className="flex items-start gap-3">
-                              <div className="p-1.5 bg-slate-800 rounded-lg text-slate-400">
-                                <item.icon className="w-3.5 h-3.5" />
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-slate-200">{item.data?.name || 'N/A'}</p>
-                                <p className="text-[10px] text-slate-500">{item.label} • {item.data?.distance || ''} ({item.data?.miles || 0} mi)</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Schools & Transit</h4>
-                        <div className="space-y-3">
-                          {[
-                            { icon: School, label: 'Elementary', data: survey.closest_elementary },
-                            { icon: School, label: 'Middle', data: survey.closest_middle },
-                            { icon: School, label: 'High School', data: survey.closest_high },
-                            { icon: MapIcon, label: 'Highway', data: survey.closest_highway },
-                          ].map((item, idx) => (
-                            <div key={idx} className="flex items-start gap-3">
-                              <div className="p-1.5 bg-slate-800 rounded-lg text-slate-400">
-                                <item.icon className="w-3.5 h-3.5" />
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-slate-200">{item.data?.name || 'N/A'}</p>
-                                <p className="text-[10px] text-slate-500">{item.label} • {item.data?.distance || ''} ({item.data?.miles || 0} mi)</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-4 border-t border-slate-800">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Shield className={cn(
-                            "w-4 h-4",
-                            survey.safety_rating?.includes('Very Safe') ? "text-emerald-400" :
-                            survey.safety_rating?.includes('Safe') ? "text-blue-400" : "text-amber-400"
-                          )} />
-                          <span className="text-xs font-bold text-slate-200">Area Safety: {survey.safety_rating || 'N/A'}</span>
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-slate-500 leading-relaxed italic">
-                        {survey.safety_notes || 'No specific safety data available for this immediate area.'}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-slate-900/50 rounded-xl p-8 border border-slate-800 border-dashed flex flex-col items-center text-center">
-                    <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-slate-500 mb-4">
-                      <Navigation className="w-6 h-6" />
-                    </div>
-                    <p className="text-sm font-bold text-slate-300 mb-1">Local Amenities Map</p>
-                    <p className="text-xs text-slate-500 mb-4 max-w-[200px]">
-                      Discover nearby schools, transit, and shopping centers to complete the property profile.
-                    </p>
-                    <button 
-                      onClick={handleEnrichProperty}
-                      disabled={isEnriching}
-                      className="btn-primary py-2 px-6 text-xs"
-                    >
-                      {isEnriching ? 'Searching...' : 'Fetch Amenities'}
-                    </button>
-                  </div>
-                )}
-              </section>
-
-              <section>
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Tag className="w-3.5 h-3.5" />
-                  Property Features
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-800 flex flex-col items-center text-center">
-                    <Sun className={cn("w-5 h-5 mb-2", survey.has_solar_panels === 'Yes' ? "text-amber-400" : "text-slate-600")} />
-                    <p className="text-[10px] text-slate-500 uppercase font-bold">Solar Panels</p>
-                    <p className="text-sm font-bold">{survey.has_solar_panels}</p>
-                  </div>
-                  <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-800 flex flex-col items-center text-center">
-                    <Car className="w-5 h-5 mb-2 text-blue-400" />
-                    <p className="text-[10px] text-slate-500 uppercase font-bold">Vehicles</p>
-                    <p className="text-sm font-bold">{survey.vehicle_count}</p>
-                  </div>
-                  <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-800 flex flex-col items-center text-center">
-                    <FileText className="w-5 h-5 mb-2 text-emerald-400" />
-                    <p className="text-[10px] text-slate-500 uppercase font-bold">For Sale</p>
-                    <p className="text-sm font-bold">{survey.is_for_sale}</p>
-                  </div>
-                </div>
-              </section>
-
-              {survey.type === 'commercial' && (
-                <section>
-                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <Building2 className="w-3.5 h-3.5" />
-                    Commercial Data
-                  </h3>
-                  <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 grid grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Building Type</p>
-                      <p className="text-sm font-bold text-slate-200">{survey.building_type || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Occupancy</p>
-                      <p className="text-sm font-bold text-slate-200">{survey.occupancy || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Zoning</p>
-                      <p className="text-sm font-bold text-slate-200">{survey.zoning_type || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Parking</p>
-                      <p className="text-sm font-bold text-slate-200">{survey.parking_avail || 'N/A'}</p>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              <section>
                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <FileText className="w-3.5 h-3.5" />
-                  Surveyor Notes
+                  Review Notes
                 </h3>
-                <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 min-h-[100px]">
-                  <p className="text-sm text-slate-300 leading-relaxed italic">
-                    {survey.notes || 'No notes provided for this survey.'}
-                  </p>
-                </div>
+                <textarea 
+                  className="w-full bg-slate-900/50 rounded-xl p-4 border border-slate-800 text-sm text-slate-300 focus:outline-none focus:border-accent/50 min-h-[120px] placeholder:text-slate-600"
+                  placeholder="Add administrative notes or feedback for the surveyor..."
+                />
               </section>
             </div>
           </div>

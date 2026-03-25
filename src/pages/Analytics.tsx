@@ -37,6 +37,15 @@ export default function Analytics() {
     { segment: 'Government', ltv: 45000, cac: 5000 },
   ];
 
+  const bonusTrendData = [
+    { month: 'Oct', payout: 4200, surveyors: 12 },
+    { month: 'Nov', payout: 5800, surveyors: 15 },
+    { month: 'Dec', payout: 8500, surveyors: 18 },
+    { month: 'Jan', payout: 7200, surveyors: 20 },
+    { month: 'Feb', payout: 9800, surveyors: 22 },
+    { month: 'Mar', payout: 12500, surveyors: 25 },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
@@ -67,30 +76,41 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Surveyor Productivity */}
+        {/* Bonus Payout Trends */}
         <div className="glass-card p-6">
           <h3 className="font-bold text-lg mb-8 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-accent" />
-            Surveyor Productivity Ranking
+            <TrendingUp className="w-5 h-5 text-accent" />
+            Surveyor Bonus Payout Trends
           </h3>
-          <div className="space-y-6">
-            {[
-              { name: 'Alex Rivera', score: 98, surveys: 85 },
-              { name: 'Taylor Lee', score: 95, surveys: 95 },
-              { name: 'Jordan Smith', score: 88, surveys: 72 },
-              { name: 'Casey Johnson', score: 82, surveys: 60 },
-            ].map((s, i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">{s.name}</span>
-                  <span className="text-accent font-bold">{s.score}% Efficiency</span>
-                </div>
-                <div className="h-2 w-full bg-background rounded-full overflow-hidden">
-                  <div className="h-full bg-accent rounded-full" style={{ width: `${s.score}%` }}></div>
-                </div>
-                <p className="text-[10px] text-text-muted">{s.surveys} surveys completed this month</p>
-              </div>
-            ))}
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={bonusTrendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#3a453a" vertical={false} />
+                <XAxis dataKey="month" stroke="#86a386" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#86a386" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#252b25', border: '1px solid #3a453a', borderRadius: '8px' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="payout" 
+                  stroke="#4ade80" 
+                  strokeWidth={3} 
+                  dot={{ fill: '#4ade80', strokeWidth: 2, r: 4 }} 
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  name="Total Payout ($)"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="surveyors" 
+                  stroke="#86a386" 
+                  strokeWidth={2} 
+                  strokeDasharray="5 5"
+                  dot={{ fill: '#86a386', r: 3 }}
+                  name="Eligible Surveyors"
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

@@ -35,6 +35,22 @@ export async function enrichPropertyData(address: string): Promise<EnrichmentRes
     return { data: null, error: "Empty address provided" };
   }
 
+  // Check cache first
+  const cacheKey = `enrichment_${address.toLowerCase().trim()}`;
+  const cachedData = localStorage.getItem(cacheKey);
+  if (cachedData) {
+    try {
+      const parsed = JSON.parse(cachedData);
+      // Cache for 24 hours
+      if (Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+        console.log(`[Enrichment] Returning cached data for: ${address}`);
+        return { data: parsed.data };
+      }
+    } catch (e) {
+      console.warn("[Enrichment] Failed to parse cached data", e);
+    }
+  }
+
   const rawApiKey = process.env.GEMINI_API_KEY || 
                    process.env.VITE_GEMINI_API_KEY ||
                    (import.meta as any).env?.VITE_GEMINI_API_KEY || 
@@ -232,6 +248,14 @@ export async function enrichPropertyData(address: string): Promise<EnrichmentRes
     try {
       const result = JSON.parse(text);
       console.log("[Enrichment] Successfully parsed JSON result.");
+      
+      // Save to cache
+      const cacheKey = `enrichment_${address.toLowerCase().trim()}`;
+      localStorage.setItem(cacheKey, JSON.stringify({
+        data: result,
+        timestamp: Date.now()
+      }));
+      
       return { data: result };
     } catch (parseError: any) {
       console.error("[Enrichment] JSON Parse Error. Raw text:", text);

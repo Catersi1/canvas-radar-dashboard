@@ -21,7 +21,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 // Pages
-import Dashboard from '../pages/Dashboard';
+import AdminDashboard from '../pages/Dashboard'; // We'll treat this as Admin Dashboard
+import SurveyorDashboard from '../pages/SurveyorDashboard';
+import CustomerDashboard from '../pages/CustomerDashboard';
 import Customers from '../pages/Customers';
 import Surveyors from '../pages/Surveyors';
 import Surveys from '../pages/Surveys';
@@ -45,22 +47,29 @@ export default function AdminApp({ onLogout, onNavigateHome, user }: AdminAppPro
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCustomerView, setIsCustomerView] = useState(false);
 
+  const role = user?.role || 'admin';
+
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'customers', label: 'Customers', icon: Building },
-    { id: 'surveyors', label: 'Surveyors', icon: Users },
-    { id: 'surveys', label: 'Surveys', icon: FileText },
-    { id: 'users', label: 'Users', icon: ShieldCheck },
-    { id: 'billing', label: 'Billing', icon: Wallet },
-    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'power_user', 'employer', 'surveyor', 'customer'] },
+    { id: 'customers', label: 'Customers', icon: Building, roles: ['admin', 'power_user', 'employer'] },
+    { id: 'surveyors', label: 'Surveyors', icon: Users, roles: ['admin', 'power_user', 'employer'] },
+    { id: 'surveys', label: 'Surveys', icon: FileText, roles: ['admin', 'power_user', 'employer', 'surveyor', 'customer'] },
+    { id: 'users', label: 'Users', icon: ShieldCheck, roles: ['admin'] },
+    { id: 'billing', label: 'Billing', icon: Wallet, roles: ['admin', 'customer'] },
+    { id: 'analytics', label: 'Analytics', icon: TrendingUp, roles: ['admin', 'power_user', 'employer'] },
+    { id: 'settings', label: 'Settings', icon: Settings, roles: ['admin', 'power_user', 'employer', 'surveyor', 'customer'] },
   ];
+
+  const filteredNavItems = navItems.filter(item => item.roles.includes(role));
 
   const renderPage = () => {
     if (isCustomerView) return <CustomerPortal onBack={() => setIsCustomerView(false)} />;
     
     switch (activePage) {
-      case 'dashboard': return <Dashboard onViewAsCustomer={() => setIsCustomerView(true)} />;
+      case 'dashboard': 
+        if (role === 'surveyor') return <SurveyorDashboard />;
+        if (role === 'customer') return <CustomerDashboard />;
+        return <AdminDashboard onViewAsCustomer={() => setIsCustomerView(true)} />;
       case 'customers': return <Customers />;
       case 'surveyors': return <Surveyors />;
       case 'surveys': return <Surveys />;
@@ -68,7 +77,10 @@ export default function AdminApp({ onLogout, onNavigateHome, user }: AdminAppPro
       case 'analytics': return <Analytics />;
       case 'settings': return <SettingsPage />;
       case 'users': return <UsersPage />;
-      default: return <Dashboard onViewAsCustomer={() => setIsCustomerView(true)} />;
+      default: 
+        if (role === 'surveyor') return <SurveyorDashboard />;
+        if (role === 'customer') return <CustomerDashboard />;
+        return <AdminDashboard onViewAsCustomer={() => setIsCustomerView(true)} />;
     }
   };
 
@@ -99,7 +111,7 @@ export default function AdminApp({ onLogout, onNavigateHome, user }: AdminAppPro
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActivePage(item.id as Page)}
@@ -162,7 +174,7 @@ export default function AdminApp({ onLogout, onNavigateHome, user }: AdminAppPro
             className="fixed inset-0 bg-background z-40 pt-20 px-6 md:hidden"
           >
             <nav className="space-y-4">
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => {

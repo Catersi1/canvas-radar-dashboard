@@ -26,7 +26,7 @@ function App() {
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [authRole, setAuthRole] = useState<'surveyor' | 'customer'>('customer');
+  const [authRole, setAuthRole] = useState<'surveyor' | 'customer' | 'admin'>('customer');
   const [authType, setAuthType] = useState<'login' | 'signup'>('login');
 
   React.useEffect(() => {
@@ -37,12 +37,17 @@ function App() {
     }
   }, [user]);
 
-  const navigate = (page: Page) => {
-    if (page === 'admin' && !user) {
+  const navigate = (page: string) => {
+    if (page.startsWith('login-')) {
+      const role = page.split('-')[1] as 'surveyor' | 'customer' | 'admin';
+      setAuthRole(role);
+      setAuthType('login');
+      setCurrentPage('login');
+    } else if (page === 'admin' && !user) {
       setAuthType('login');
       setCurrentPage('login');
     } else {
-      setCurrentPage(page);
+      setCurrentPage(page as Page);
     }
     setIsMenuOpen(false);
     window.scrollTo(0, 0);
@@ -50,11 +55,7 @@ function App() {
 
   const handleLogin = (userData: User) => {
     setUser(userData);
-    if (userData.role === 'admin' || userData.role === 'power_user' || userData.role === 'employer') {
-      setCurrentPage('admin');
-    } else {
-      setCurrentPage('home');
-    }
+    setCurrentPage('admin');
   };
 
   const handleLogout = () => {
@@ -84,7 +85,7 @@ function App() {
             type={authType} 
             role={authRole} 
             onToggleType={() => setAuthType(authType === 'login' ? 'signup' : 'login')}
-            onToggleRole={() => setAuthRole(authRole === 'customer' ? 'surveyor' : 'customer')}
+            onChangeRole={(r) => setAuthRole(r)}
             onAuthSuccess={handleLogin}
           />
         );
@@ -243,6 +244,26 @@ function App() {
                 {['Commercial Leads', 'Data API', 'Surveyor Network', 'Territory Map', 'Pricing'].map((item) => (
                   <li key={item}>
                     <button className="text-text-muted hover:text-accent transition-colors">{item}</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-bold uppercase tracking-widest mb-8">Portals</h4>
+              <ul className="space-y-4">
+                {[
+                  { label: 'Admin Portal', id: 'login-admin' },
+                  { label: 'Customer Portal', id: 'login-customer' },
+                  { label: 'Surveyor Portal', id: 'login-surveyor' },
+                ].map((item) => (
+                  <li key={item.id}>
+                    <button 
+                      onClick={() => navigate(item.id)}
+                      className="text-text-muted hover:text-accent transition-colors"
+                    >
+                      {item.label}
+                    </button>
                   </li>
                 ))}
               </ul>

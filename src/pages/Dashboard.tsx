@@ -20,10 +20,11 @@ import SurveyTable from '../components/SurveyTable';
 import SurveyDetail from '../components/SurveyDetail';
 import { findPropertyPhoto } from '../services/propertySearch';
 import { enrichPropertyData } from '../services/propertyEnrichment';
+import { saveToCache } from '../lib/cache';
 import { format, subDays, startOfDay, isAfter } from 'date-fns';
 import { cn } from '../lib/utils';
 
-export default function Dashboard() {
+export default function AdminDashboard({ onViewAsCustomer }: { onViewAsCustomer?: () => void }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [properties, setProperties] = useState<Property[]>([]);
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -248,6 +249,9 @@ export default function Dashboard() {
         s.id === surveyId ? { ...s, status: 'complete' as const } : s
       ));
       
+      // Save to cache
+      saveToCache(surveyId, { status: 'complete' });
+      
       // Update selected survey to reflect changes immediately
       if (selectedSurvey?.id === surveyId) {
         setSelectedSurvey({ ...selectedSurvey, status: 'complete' as const });
@@ -275,6 +279,9 @@ export default function Dashboard() {
   const handleUpdateSurvey = async (id: string, updates: Partial<Survey>) => {
     // Update local state
     setSurveys(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    
+    // Save to cache for persistence across mock data resets
+    saveToCache(id, updates);
     
     // Update selected survey if it's the one being updated
     setSelectedSurvey(prev => {
@@ -366,6 +373,15 @@ export default function Dashboard() {
             Executive Summary
           </h2>
           <div className="flex items-center gap-3">
+            {onViewAsCustomer && (
+              <button 
+                onClick={onViewAsCustomer}
+                className="flex items-center gap-2 text-xs text-purple-400 bg-purple-500/10 px-3 py-1.5 rounded-lg border border-purple-500/20 hover:bg-purple-500/20 transition-all"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                View as Customer
+              </button>
+            )}
             <button 
               onClick={() => autoEnrichProperties(surveys)}
               disabled={isAutoEnriching}
