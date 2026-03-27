@@ -35,6 +35,8 @@ export default function AdminDashboard({ onViewAsCustomer }: { onViewAsCustomer?
   const [error, setError] = useState<string | null>(null);
   const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
   const [showDiscovery, setShowDiscovery] = useState(false);
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const [isAutoFetching, setIsAutoFetching] = useState(false);
   const [isAutoEnriching, setIsAutoEnriching] = useState(false);
@@ -55,19 +57,31 @@ export default function AdminDashboard({ onViewAsCustomer }: { onViewAsCustomer?
     return key && key !== 'undefined' && key !== 'null' && key.trim() !== '';
   }, []);
 
-  const autoEnrichProperties = async (surveysList: Survey[]) => {
+  const autoEnrichProperties = async (surveysList: Survey[], force: boolean = false) => {
     if (isAutoEnriching) return;
     
-    const toEnrich = surveysList.filter(s => s.enrichment_status === 'none').slice(0, 3);
-    if (toEnrich.length === 0) return;
+    const toEnrich = surveysList.filter(s => 
+      force ? (s.enrichment_status === 'none' || s.enrichment_status === 'failed') : s.enrichment_status === 'none'
+    ).slice(0, 3);
+
+    if (toEnrich.length === 0) {
+      if (force) {
+        setNotification({ message: "No properties found that need enrichment.", type: 'info' });
+        setTimeout(() => setNotification(null), 3000);
+      }
+      return;
+    }
 
     setIsAutoEnriching(true);
-    console.log(`Dashboard: Auto-enriching ${toEnrich.length} properties...`);
+    console.log(`Dashboard: Auto-enriching ${toEnrich.length} properties... (Force: ${force})`);
 
+    let successCount = 0;
     for (const survey of toEnrich) {
       try {
-        const result = await enrichPropertyData(survey.properties?.address || '');
+        const fullAddress = `${survey.properties?.address || ''}, ${survey.properties?.city || ''}, ${survey.properties?.state || ''} ${survey.properties?.zip || ''}`;
+        const result = await enrichPropertyData(fullAddress);
         if (result.data) {
+          successCount++;
           await handleUpdateSurvey(survey.id, {
             sqft: result.data.sqft,
             year_built: result.data.year_built,
@@ -104,6 +118,12 @@ export default function AdminDashboard({ onViewAsCustomer }: { onViewAsCustomer?
       }
     }
     setIsAutoEnriching(false);
+    if (successCount > 0) {
+      setNotification({ message: `Successfully enriched ${successCount} properties.`, type: 'success' });
+    } else if (toEnrich.length > 0) {
+      setNotification({ message: `Failed to enrich ${toEnrich.length} properties. Check API keys.`, type: 'error' });
+    }
+    setTimeout(() => setNotification(null), 5000);
   };
 
   const fetchMissingPhotos = async (surveysList: Survey[]) => {
@@ -297,13 +317,31 @@ export default function AdminDashboard({ onViewAsCustomer }: { onViewAsCustomer?
 
     // Update Supabase
     try {
-      const { error } = await supabase
-        .from('surveys')
-        .update(updates)
-        .eq('id', id);
+      // If updates contains property data, update the properties table
+      if (updates.properties && updates.properties.id) {
+        const { id: propId, ...propUpdates } = updates.properties;
+        const { error: propError } = await supabase
+          .from('properties')
+          .update(propUpdates)
+          .eq('id', propId);
+        
+        if (propError) {
+          console.warn('Supabase property update failed:', propError);
+        }
+      }
+
+      // Remove properties from updates before updating surveys table to avoid errors
+      const { properties, ...surveyUpdates } = updates as any;
       
-      if (error) {
-        console.warn('Supabase update failed:', error);
+      if (Object.keys(surveyUpdates).length > 0) {
+        const { error } = await supabase
+          .from('surveys')
+          .update(surveyUpdates)
+          .eq('id', id);
+        
+        if (error) {
+          console.warn('Supabase survey update failed:', error);
+        }
       }
     } catch (err) {
       console.error('Error updating Supabase:', err);
@@ -429,27 +467,51 @@ export default function AdminDashboard({ onViewAsCustomer }: { onViewAsCustomer?
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {!hasApiKey && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3 mb-4">
+      {notification && (
+        <div className={cn(
+          "fixed top-4 right-4 z-[60] p-4 rounded-xl border shadow-2xl animate-in slide-in-from-top-4 duration-300 flex items-center gap-3",
+          notification.type === 'success' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+          notification.type === 'error' ? "bg-red-500/10 border-red-500/20 text-red-400" :
+          "bg-blue-500/10 border-blue-500/20 text-blue-400"
+        )}>
+          <AlertCircle className="w-5 h-5" />
+          <p className="text-sm font-medium">{notification.message}</p>
+        </div>
+      )}
+
+      {!hasApiKey && !dismissedWarnings.has('gemini') && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3 mb-4 relative group">
           <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <h3 className="text-sm font-bold text-amber-500">Gemini API Key Missing</h3>
             <p className="text-xs text-amber-200/70 mt-1 leading-relaxed">
               Data enrichment and photo search are currently disabled. Please add your <code className="bg-amber-500/20 px-1 rounded text-amber-400">GEMINI_API_KEY</code> to the AI Studio Secrets (⚙️ Settings → Secrets) to enable these features.
             </p>
           </div>
+          <button 
+            onClick={() => setDismissedWarnings(prev => new Set(prev).add('gemini'))}
+            className="p-1 text-amber-500/50 hover:text-amber-500 transition-colors"
+          >
+            <RefreshCcw className="w-4 h-4 rotate-45" />
+          </button>
         </div>
       )}
 
-      {!hasMapsKey && (
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3 mb-4">
+      {!hasMapsKey && !dismissedWarnings.has('maps') && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-start gap-3 mb-4 relative group">
           <Globe className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <h3 className="text-sm font-bold text-blue-500">Google Maps API Key Missing</h3>
             <p className="text-xs text-blue-200/70 mt-1 leading-relaxed">
               Street View pictures are currently using a fallback. Please add your <code className="bg-blue-500/20 px-1 rounded text-blue-400">GOOGLE_MAPS_PLATFORM_KEY</code> to the AI Studio Secrets to enable high-quality Street View images.
             </p>
           </div>
+          <button 
+            onClick={() => setDismissedWarnings(prev => new Set(prev).add('maps'))}
+            className="p-1 text-blue-500/50 hover:text-blue-500 transition-colors"
+          >
+            <RefreshCcw className="w-4 h-4 rotate-45" />
+          </button>
         </div>
       )}
 
@@ -478,7 +540,7 @@ export default function AdminDashboard({ onViewAsCustomer }: { onViewAsCustomer?
               Discover Properties
             </button>
             <button 
-              onClick={() => autoEnrichProperties(surveys)}
+              onClick={() => autoEnrichProperties(surveys, true)}
               disabled={isAutoEnriching}
               className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all disabled:opacity-50"
             >

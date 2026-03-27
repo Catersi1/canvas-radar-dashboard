@@ -15,7 +15,8 @@ import {
   Trash2,
   RefreshCcw,
   TrendingUp,
-  Globe
+  Globe,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
@@ -32,38 +33,73 @@ export default function Surveys() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [safetyFilter, setSafetyFilter] = useState<string>('All');
   const [qualityFilter, setQualityFilter] = useState<string>('All');
+  const [leadStatusFilter, setLeadStatusFilter] = useState<string>('All');
   const [surveys, setSurveys] = useState<Survey[]>(() => generateMockData().surveys);
   const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
   const [isAutoFetching, setIsAutoFetching] = useState(false);
   const [isAutoEnriching, setIsAutoEnriching] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
-  const [apiKeyMissing, setApiKeyMissing] = useState(false);
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
+  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   React.useEffect(() => {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key || key === 'undefined') {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  const [apiKeyMissing, setApiKeyMissing] = useState(false);
+  const [hasMapsKey, setHasMapsKey] = useState(true);
+
+  React.useEffect(() => {
+    const key = process.env.GEMINI_API_KEY || 
+                process.env.VITE_GEMINI_API_KEY ||
+                (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                (import.meta as any).env?.GEMINI_API_KEY || 
+                '';
+    if (!key || key === 'undefined' || key === 'null' || key.trim() === '') {
       setApiKeyMissing(true);
+    } else {
+      setApiKeyMissing(false);
+    }
+
+    const mapsKey = process.env.GOOGLE_MAPS_PLATFORM_KEY || 
+                    (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY || 
+                    '';
+    if (!mapsKey || mapsKey === 'undefined' || mapsKey === 'null' || mapsKey.trim() === '') {
+      setHasMapsKey(false);
+    } else {
+      setHasMapsKey(true);
     }
   }, []);
 
-  const autoEnrichProperties = async (surveysList: Survey[], forceAll = false) => {
+  const autoEnrichProperties = async (surveysList: Survey[], force = false) => {
     if (isAutoEnriching || !!syncProgress || apiKeyMissing) return;
     
     const toEnrich = surveysList.filter(s => 
-      s.enrichment_status === 'none' || (forceAll && s.enrichment_status === 'failed')
+      s.enrichment_status === 'none' || (force && s.enrichment_status === 'failed')
     ).slice(0, 3);
     
-    if (toEnrich.length === 0) return;
+    if (toEnrich.length === 0) {
+      if (force) {
+        setNotification({ type: 'info', message: 'All properties are already enriched.' });
+      }
+      return;
+    }
 
     setIsAutoEnriching(true);
+    setNotification({ type: 'info', message: `Enriching ${toEnrich.length} properties...` });
     console.log(`Auto-enriching ${toEnrich.length} properties...`);
 
+    let successCount = 0;
     for (const survey of toEnrich) {
       try {
         const fullAddress = `${survey.properties?.address}, ${survey.properties?.city}, ${survey.properties?.state} ${survey.properties?.zip}`;
         console.log(`Attempting enrichment for: ${fullAddress}`);
         const result = await enrichPropertyData(fullAddress);
         if (result.data) {
+          successCount++;
           await handleUpdate(survey.id, {
             sqft: result.data.sqft,
             year_built: result.data.year_built,
@@ -106,6 +142,11 @@ export default function Surveys() {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
     setIsAutoEnriching(false);
+    if (successCount > 0) {
+      setNotification({ type: 'success', message: `Successfully enriched ${successCount} properties.` });
+    } else if (toEnrich.length > 0) {
+      setNotification({ type: 'error', message: `Failed to enrich ${toEnrich.length} properties. Check API keys.` });
+    }
   };
 
   const fetchMissingPhotos = async (surveysList: Survey[]) => {
@@ -151,10 +192,11 @@ export default function Surveys() {
     );
     
     if (toProcess.length === 0) {
-      alert("Library is already fully enriched and has all photos.");
+      setNotification({ type: 'info', message: "Library is already fully enriched and has all photos." });
       return;
     }
 
+    setNotification({ type: 'info', message: `Syncing ${toProcess.length} items...` });
     setSyncProgress({ current: 0, total: toProcess.length });
     
     for (let i = 0; i < toProcess.length; i++) {
@@ -227,7 +269,7 @@ export default function Surveys() {
     }
     
     setSyncProgress(null);
-    alert("Library sync complete!");
+    setNotification({ type: 'success', message: "Library sync complete!" });
   };
 
   React.useEffect(() => {
@@ -280,13 +322,34 @@ export default function Surveys() {
 
     // Update Supabase
     try {
-      const { error } = await supabase
-        .from('surveys')
-        .update(updates)
-        .eq('id', id);
+      // If updates contains property data, update the properties table
+      if (updates.properties && updates.properties.id) {
+        const { id: propId, ...propUpdates } = updates.properties;
+        // Filter out any fields that might not be in the properties table if necessary
+        // but for now we assume the schema matches our Property interface
+        const { error: propError } = await supabase
+          .from('properties')
+          .update(propUpdates)
+          .eq('id', propId);
+        
+        if (propError) {
+          console.warn('Supabase property update failed:', propError);
+        }
+      }
+
+      // Remove properties from updates before updating surveys table to avoid errors
+      // as properties is a joined field, not a column in surveys
+      const { properties, ...surveyUpdates } = updates as any;
       
-      if (error) {
-        console.warn('Supabase update failed:', error);
+      if (Object.keys(surveyUpdates).length > 0) {
+        const { error } = await supabase
+          .from('surveys')
+          .update(surveyUpdates)
+          .eq('id', id);
+        
+        if (error) {
+          console.warn('Supabase survey update failed:', error);
+        }
       }
     } catch (err) {
       console.error('Error updating Supabase:', err);
@@ -311,8 +374,10 @@ export default function Surveys() {
                           (qualityFilter === 'High' && (s.quality_score || 0) >= 90) ||
                           (qualityFilter === 'Medium' && (s.quality_score || 0) >= 75 && (s.quality_score || 0) < 90) ||
                           (qualityFilter === 'Low' && (s.quality_score || 0) < 75);
+    
+    const matchesLeadStatus = leadStatusFilter === 'All' || s.properties?.lead_status === leadStatusFilter;
 
-    return matchesSearch && matchesStatus && matchesSafety && matchesQuality;
+    return matchesSearch && matchesStatus && matchesSafety && matchesQuality && matchesLeadStatus;
   });
 
   const getStatusConfig = (status: string) => {
@@ -325,16 +390,48 @@ export default function Surveys() {
 
   return (
     <div className="space-y-6">
+      {notification && (
+        <div className={cn(
+          "fixed top-4 right-4 z-[60] p-4 rounded-xl border shadow-2xl animate-in slide-in-from-top-4 duration-300 flex items-center gap-3",
+          notification.type === 'success' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+          notification.type === 'error' ? "bg-red-500/10 border-red-500/20 text-red-400" :
+          "bg-blue-500/10 border-blue-500/20 text-blue-400"
+        )}>
+          <AlertCircle className="w-5 h-5" />
+          <p className="text-sm font-bold">{notification.message}</p>
+          <button onClick={() => setNotification(null)} className="ml-2 hover:text-white">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Surveys</h2>
           <p className="text-text-muted mt-1">Track and review property survey progress.</p>
         </div>
         <div className="flex items-center gap-3">
-          {apiKeyMissing && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold animate-pulse">
+          {apiKeyMissing && !dismissedWarnings.has('gemini') && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-xs font-bold animate-pulse group relative">
               <AlertCircle className="w-4 h-4" />
               API Key Missing
+              <button 
+                onClick={() => setDismissedWarnings(prev => new Set(prev).add('gemini'))}
+                className="ml-2 hover:text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+          {!hasMapsKey && !dismissedWarnings.has('maps') && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-xs font-bold group relative">
+              <Globe className="w-4 h-4" />
+              Maps Key Missing
+              <button 
+                onClick={() => setDismissedWarnings(prev => new Set(prev).add('maps'))}
+                className="ml-2 hover:text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
             </div>
           )}
           {syncProgress && (
@@ -347,12 +444,12 @@ export default function Surveys() {
             </div>
           )}
           <button 
-            onClick={syncLibrary}
+            onClick={() => autoEnrichProperties(surveys, true)}
             disabled={isAutoEnriching || isAutoFetching || !!syncProgress}
             className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-black text-sm font-bold rounded-xl transition-all shadow-lg shadow-accent/20 disabled:opacity-50"
           >
             <RefreshCcw className={cn("w-4 h-4", (isAutoEnriching || isAutoFetching || !!syncProgress) && "animate-spin")} />
-            {syncProgress ? 'Syncing...' : 'Sync Library'}
+            {syncProgress ? 'Syncing...' : 'Enrich All Data'}
           </button>
           <button className="btn-secondary">
             <Download className="w-4 h-4" />
@@ -406,6 +503,18 @@ export default function Surveys() {
             <option value="High">High (90%+)</option>
             <option value="Medium">Medium (75-89%)</option>
             <option value="Low">Low (&lt;75%)</option>
+          </select>
+          <select 
+            value={leadStatusFilter}
+            onChange={(e) => setLeadStatusFilter(e.target.value)}
+            className="bg-card border border-card-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-accent/50"
+          >
+            <option value="All">Lead: All</option>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="callback">Callback</option>
+            <option value="not_interested">Not Interested</option>
+            <option value="booked">Booked</option>
           </select>
         </div>
       </div>
@@ -501,6 +610,18 @@ export default function Surveys() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {survey.enrichment_status === 'failed' && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            autoEnrichProperties([survey], true);
+                          }}
+                          className="p-1.5 hover:bg-background rounded-lg text-amber-500 hover:text-amber-400 transition-colors"
+                          title="Retry Enrichment"
+                        >
+                          <RefreshCcw className="w-4 h-4" />
+                        </button>
+                      )}
                       {survey.status !== 'complete' && (
                         <button 
                           onClick={(e) => {

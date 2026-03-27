@@ -9,6 +9,7 @@ import {
   Home, 
   Building2,
   CheckCircle2,
+  AlertCircle,
   AlertTriangle,
   Info,
   Camera,
@@ -35,7 +36,11 @@ import {
   Utensils,
   Fuel,
   Map as MapIcon,
-  Shield
+  Shield,
+  Phone,
+  Mail,
+  Briefcase,
+  MessageSquare
 } from 'lucide-react';
 import { Survey } from '../types';
 import { format } from 'date-fns';
@@ -91,9 +96,19 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
   };
 
   const handleEnrichProperty = async () => {
+    const address = survey.properties?.address || survey.address;
+    if (!address) {
+      console.error("No address found for enrichment");
+      return;
+    }
+
     setIsEnriching(true);
     try {
-      const fullAddress = `${survey.properties?.address}, ${survey.properties?.city}, ${survey.properties?.state} ${survey.properties?.zip}`;
+      const city = survey.properties?.city || '';
+      const state = survey.properties?.state || '';
+      const zip = survey.properties?.zip || '';
+      const fullAddress = `${address}${city ? `, ${city}` : ''}${state ? `, ${state}` : ''}${zip ? ` ${zip}` : ''}`;
+      
       const { data, error } = await enrichPropertyData(fullAddress);
       if (data && onUpdate) {
         onUpdate(survey.id, {
@@ -133,6 +148,17 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
       console.error("Failed to enrich property data:", error);
     } finally {
       setIsEnriching(false);
+    }
+  };
+
+  const handlePropertyUpdate = (updates: any) => {
+    if (onUpdate && survey.properties) {
+      onUpdate(survey.id, {
+        properties: {
+          ...survey.properties,
+          ...updates
+        }
+      });
     }
   };
 
@@ -392,6 +418,24 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
                         <p className="text-sm font-bold text-slate-300">{survey.neighborhood_rating}</p>
                       </div>
                     </div>
+                  ) : survey.enrichment_status === 'failed' ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                      <div className="p-4 bg-red-500/10 rounded-full border border-red-500/20">
+                        <AlertCircle className="w-8 h-8 text-red-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-red-400">Enrichment Failed</p>
+                        <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">{survey.enrichment_error || 'An error occurred while fetching property data.'}</p>
+                        <button 
+                          onClick={handleEnrichProperty}
+                          disabled={isEnriching}
+                          className="mt-4 px-4 py-2 bg-red-500 hover:bg-red-400 text-white text-xs font-bold uppercase rounded-xl transition-all flex items-center gap-2 mx-auto"
+                        >
+                          {isEnriching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                          Retry Enrichment
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
                       <div className="p-4 bg-slate-800/50 rounded-full border border-slate-700">
@@ -518,6 +562,122 @@ export default function SurveyDetail({ survey, onClose, onApprove, onUpdate }: S
                         <p className="text-[8px] text-slate-500 leading-relaxed italic">
                           "{survey.safety_notes || 'Low crime area with active neighborhood watch and well-lit streets.'}"
                         </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Lead & Contact Information */}
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <User className="w-3.5 h-3.5" />
+                    Lead & Contact Information
+                  </h3>
+                  {survey.properties?.lead_status && (
+                    <span className={cn(
+                      "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-tighter",
+                      survey.properties.lead_status === 'booked' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
+                      survey.properties.lead_status === 'not_interested' ? "bg-red-500/20 text-red-400 border border-red-500/30" :
+                      "bg-accent/20 text-accent border border-accent/30"
+                    )}>
+                      {survey.properties.lead_status}
+                    </span>
+                  )}
+                </div>
+                <div className="bg-slate-900/40 rounded-2xl p-6 border border-slate-800">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Business Name</label>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
+                          <Briefcase className="w-4 h-4 text-slate-500" />
+                          <input 
+                            type="text"
+                            value={survey.properties?.business_name || ''}
+                            onChange={(e) => handlePropertyUpdate({ business_name: e.target.value })}
+                            placeholder="Not specified"
+                            className="bg-transparent border-none focus:ring-0 text-sm text-slate-200 w-full placeholder:text-slate-600"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Contact Name</label>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
+                          <User className="w-4 h-4 text-slate-500" />
+                          <input 
+                            type="text"
+                            value={survey.properties?.contact_name || ''}
+                            onChange={(e) => handlePropertyUpdate({ contact_name: e.target.value })}
+                            placeholder="Not specified"
+                            className="bg-transparent border-none focus:ring-0 text-sm text-slate-200 w-full placeholder:text-slate-600"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Lead Status</label>
+                        <select 
+                          value={survey.properties?.lead_status || 'new'}
+                          onChange={(e) => handlePropertyUpdate({ lead_status: e.target.value as any })}
+                          className="w-full px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700 text-sm text-slate-200 focus:ring-accent focus:border-accent"
+                        >
+                          <option value="new">New</option>
+                          <option value="contacted">Contacted</option>
+                          <option value="callback">Callback</option>
+                          <option value="not_interested">Not Interested</option>
+                          <option value="booked">Booked</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Phone Number</label>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700 group">
+                          <Phone className="w-4 h-4 text-slate-500" />
+                          <input 
+                            type="tel"
+                            value={survey.properties?.phone || ''}
+                            onChange={(e) => handlePropertyUpdate({ phone: e.target.value })}
+                            placeholder="Not specified"
+                            className="bg-transparent border-none focus:ring-0 text-sm text-slate-200 w-full placeholder:text-slate-600"
+                          />
+                          {survey.properties?.phone && (
+                            <a 
+                              href={`tel:${survey.properties.phone}`}
+                              className="p-1 hover:bg-accent/20 rounded text-accent transition-colors"
+                              title="Tap to call"
+                            >
+                              <Phone className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Email Address</label>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
+                          <Mail className="w-4 h-4 text-slate-500" />
+                          <input 
+                            type="email"
+                            value={survey.properties?.email || ''}
+                            onChange={(e) => handlePropertyUpdate({ email: e.target.value })}
+                            placeholder="Not specified"
+                            className="bg-transparent border-none focus:ring-0 text-sm text-slate-200 w-full placeholder:text-slate-600"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Lead Notes</label>
+                        <div className="flex items-start gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
+                          <MessageSquare className="w-4 h-4 text-slate-500 mt-0.5" />
+                          <textarea 
+                            value={survey.properties?.notes || ''}
+                            onChange={(e) => handlePropertyUpdate({ notes: e.target.value })}
+                            placeholder="Add lead-specific notes..."
+                            rows={2}
+                            className="bg-transparent border-none focus:ring-0 text-sm text-slate-200 w-full placeholder:text-slate-600 resize-none"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>

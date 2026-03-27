@@ -31,6 +31,12 @@ export const generateMockData = () => {
       lng: city.lng + (Math.random() - 0.5) * 0.1,
       type,
       created_at: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
+      business_name: type === 'commercial' ? `Business ${i}` : undefined,
+      contact_name: `Contact ${i}`,
+      phone: `555-010${i % 10}`,
+      email: `contact${i}@example.com`,
+      lead_status: 'new',
+      notes: 'Initial property notes.'
     };
     properties.push(property);
 

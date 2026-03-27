@@ -47,6 +47,7 @@ export default function SurveyTable({ surveys, onSelectSurvey, onExport }: Surve
               <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Property Address</th>
               <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</th>
               <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lead Status</th>
               <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Roof Condition</th>
               <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Submitted</th>
               <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
@@ -87,6 +88,20 @@ export default function SurveyTable({ surveys, onSelectSurvey, onExport }: Surve
                       {survey.status === 'pending' ? 'Review Required' : survey.status}
                     </span>
                   </div>
+                </td>
+                <td className="px-6 py-4">
+                  {survey.properties?.lead_status ? (
+                    <span className={cn(
+                      "text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-tighter",
+                      survey.properties.lead_status === 'booked' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
+                      survey.properties.lead_status === 'not_interested' ? "bg-red-500/20 text-red-400 border border-red-500/30" :
+                      "bg-accent/20 text-accent border border-accent/30"
+                    )}>
+                      {survey.properties.lead_status}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-600">N/A</span>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <span className={cn(

@@ -56,6 +56,14 @@ export interface Property {
   lng: number;
   type: PropertyType;
   created_at: string;
+  
+  // Lead Management Fields
+  business_name?: string;
+  contact_name?: string;
+  phone?: string;
+  email?: string;
+  lead_status?: 'new' | 'contacted' | 'callback' | 'not_interested' | 'booked';
+  notes?: string;
 }
 
 export interface Survey {

@@ -1,5 +1,6 @@
 export type PropertyType = 'residential' | 'commercial';
 export type SurveyStatus = 'pending' | 'complete';
+export type LeadStatus = 'new' | 'contacted' | 'callback' | 'not_interested' | 'booked';
 
 export interface Property {
   id: string;
@@ -11,6 +12,12 @@ export interface Property {
   lng: number;
   type: PropertyType;
   created_at: string;
+  business_name?: string;
+  contact_name?: string;
+  phone?: string;
+  email?: string;
+  lead_status?: LeadStatus;
+  notes?: string;
 }
 
 export interface Survey {
