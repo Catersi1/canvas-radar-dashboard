@@ -38,7 +38,7 @@ export default function AuthPage({ type, role, onToggleType, onChangeRole, onAut
         id: Math.random().toString(36).substr(2, 9),
         name: name || (email.split('@')[0]),
         email: email,
-        role: email.includes('admin') ? 'admin' : (role === 'surveyor' ? 'surveyor' : 'customer')
+        role: email.includes('admin') ? 'admin' : role
       };
       
       onAuthSuccess(mockUser);

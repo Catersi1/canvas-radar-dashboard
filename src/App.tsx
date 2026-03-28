@@ -44,6 +44,7 @@ function App() {
       setAuthType('login');
       setCurrentPage('login');
     } else if (page === 'admin' && !user) {
+      setAuthRole('admin');
       setAuthType('login');
       setCurrentPage('login');
     } else {
@@ -130,6 +131,7 @@ function App() {
             <div className="h-6 w-px bg-card-border mx-2"></div>
             <button 
               onClick={() => {
+                setAuthRole('customer');
                 setAuthType('login');
                 navigate('login');
               }}
@@ -182,6 +184,7 @@ function App() {
               <div className="h-px bg-card-border w-full my-4"></div>
               <button 
                 onClick={() => {
+                  setAuthRole('customer');
                   setAuthType('login');
                   navigate('login');
                 }}
