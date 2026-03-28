@@ -32,8 +32,9 @@ import Analytics from '../pages/Analytics';
 import SettingsPage from '../pages/Settings';
 import CustomerPortal from '../pages/CustomerPortal';
 import UsersPage from '../pages/Users';
+import Leads from '../pages/Leads';
 
-type Page = 'dashboard' | 'customers' | 'surveyors' | 'surveys' | 'billing' | 'analytics' | 'settings' | 'portal' | 'users';
+type Page = 'dashboard' | 'customers' | 'surveyors' | 'surveys' | 'billing' | 'analytics' | 'settings' | 'portal' | 'users' | 'leads';
 
 interface AdminAppProps {
   onLogout: () => void;
@@ -53,6 +54,7 @@ export default function AdminApp({ onLogout, onNavigateHome, user }: AdminAppPro
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'power_user', 'employer', 'surveyor', 'customer'] },
     { id: 'customers', label: 'Customers', icon: Building, roles: ['admin', 'power_user', 'employer'] },
     { id: 'surveyors', label: 'Surveyors', icon: Users, roles: ['admin', 'power_user', 'employer'] },
+    { id: 'leads', label: 'Leads', icon: Users, roles: ['admin', 'power_user', 'employer'] },
     { id: 'surveys', label: 'Surveys', icon: FileText, roles: ['admin', 'power_user', 'employer', 'surveyor', 'customer'] },
     { id: 'users', label: 'Users', icon: ShieldCheck, roles: ['admin'] },
     { id: 'billing', label: 'Billing', icon: Wallet, roles: ['admin', 'customer'] },
@@ -72,6 +74,7 @@ export default function AdminApp({ onLogout, onNavigateHome, user }: AdminAppPro
         return <AdminDashboard onViewAsCustomer={() => setIsCustomerView(true)} />;
       case 'customers': return <Customers />;
       case 'surveyors': return <Surveyors />;
+      case 'leads': return <Leads />;
       case 'surveys': return <Surveys />;
       case 'billing': return <Billing />;
       case 'analytics': return <Analytics />;

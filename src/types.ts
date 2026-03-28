@@ -62,7 +62,11 @@ export interface Property {
   contact_name?: string;
   phone?: string;
   email?: string;
+  website?: string;
+  employee_count_est?: string;
+  industry?: string;
   lead_status?: 'new' | 'contacted' | 'callback' | 'not_interested' | 'booked';
+  lead_source?: string;
   notes?: string;
 }
 
